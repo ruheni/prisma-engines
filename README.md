@@ -71,7 +71,7 @@ compiled binaries inside the repository root in the `target/debug` (without
 | Prisma Component     | Path to Binary                                   |
 | -------------------- | ------------------------------------------------ |
 | Query Engine         | `./target/[debug\|release]/query-engine`         |
-| Schema Engine        | `./target/[debug\|release]/migration-engine`(*)  |
+| Schema Engine        | `./target/[debug\|release]/schema-engine`(*)  |
 | Prisma Format        | `./target/[debug\|release]/prisma-fmt`           |
 
 (*) Will be renamed to schema-engine in Prisma 5.
@@ -227,8 +227,8 @@ the correct values for the following variables:
 - `WORKSPACE_ROOT` should point to the root directory of `prisma-engines` project.
 - `PRISMA_BINARY_PATH` is usually
   `%WORKSPACE_ROOT%\target\release\query-engine.exe`.
-- `MIGRATION_ENGINE_BINARY_PATH` should be
-  `%WORKSPACE_ROOT%\target\release\migration-engine.exe`.
+- `SCHEMA_ENGINE_BINARY_PATH` should be
+  `%WORKSPACE_ROOT%\target\release\schema-engine.exe`.
 
 Other variables may or may not be useful.
 
