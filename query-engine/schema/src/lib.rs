@@ -13,7 +13,6 @@ mod utils;
 
 pub use self::{
     build::{build, build_with_features, compound_id_field_name, compound_index_field_name},
-    db::InputObjectTypeId,
     enum_type::{DatabaseEnumType, EnumType},
     input_types::{InputField, InputObjectType, InputType, ObjectTag},
     output_types::{ObjectType, OutputField, OutputType},
@@ -22,7 +21,7 @@ pub use self::{
 };
 
 use self::{
-    db::{EnumTypeId, OutputObjectTypeId, QuerySchemaDatabase},
+    db::{EnumTypeId, InputObjectTypeId, OutputObjectTypeId, QuerySchemaDatabase},
     identifier_type::IdentifierType,
     input_types::InputObjectTypeConstraints,
 };

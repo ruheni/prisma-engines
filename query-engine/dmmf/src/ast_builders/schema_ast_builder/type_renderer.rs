@@ -75,8 +75,8 @@ pub(super) fn render_input_types(input_types: &[InputType], ctx: &mut RenderCont
 pub(super) fn render_input_type(input_type: &InputType, ctx: &mut RenderContext) -> DmmfTypeReference {
     match input_type {
         InputType::Object(ref obj) => {
-            ctx.mark_to_be_rendered(obj);
             let obj = &ctx.query_schema.db[*obj];
+            ctx.mark_to_be_rendered(&obj);
 
             let location = match &obj.tag {
                 Some(ObjectTag::FieldRefType(_)) => TypeLocation::FieldRefTypes,

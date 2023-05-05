@@ -19,9 +19,10 @@ impl<'a> Renderer for GqlTypeRenderer<'a> {
 impl<'a> GqlTypeRenderer<'a> {
     fn render_input_type(&self, i: &InputType, ctx: &mut RenderContext) -> String {
         match i {
-            InputType::Object(ref obj) => {
-                let _ = obj.as_renderer().render(ctx);
-                ctx.query_schema.db[*obj].identifier.name()
+            InputType::Object(obj) => {
+                let obj = &ctx.query_schema.db[*obj];
+                obj.as_renderer().render(ctx);
+                obj.identifier.name()
             }
 
             InputType::Enum(et) => {

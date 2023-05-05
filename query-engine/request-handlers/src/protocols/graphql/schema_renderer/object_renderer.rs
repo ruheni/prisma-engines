@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub enum GqlObjectRenderer<'a> {
-    Input(InputObjectTypeId),
+    Input(&'a InputObjectType),
     Output(&'a ObjectType),
 }
 
@@ -16,8 +16,7 @@ impl<'a> Renderer for GqlObjectRenderer<'a> {
 }
 
 impl<'a> GqlObjectRenderer<'a> {
-    fn render_input_object(&self, input_object: InputObjectTypeId, ctx: &mut RenderContext) -> String {
-        let input_object = &ctx.query_schema.db[input_object];
+    fn render_input_object(&self, input_object: &InputObjectType, ctx: &mut RenderContext) -> String {
         if ctx.already_rendered(&input_object.identifier.name()) {
             return "".into();
         } else {

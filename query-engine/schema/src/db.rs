@@ -19,19 +19,19 @@ impl QuerySchemaDatabase {
         self.enum_types.iter()
     }
 
-    pub fn push_input_object_type(&mut self, ty: InputObjectType) -> InputObjectTypeId {
+    pub(crate) fn push_input_object_type(&mut self, ty: InputObjectType) -> InputObjectTypeId {
         let id = InputObjectTypeId(self.input_object_types.len());
         self.input_object_types.push(ty);
         id
     }
 
-    pub fn push_output_object_type(&mut self, ty: ObjectType) -> OutputObjectTypeId {
+    pub(crate) fn push_output_object_type(&mut self, ty: ObjectType) -> OutputObjectTypeId {
         let id = OutputObjectTypeId(self.output_object_types.len());
         self.output_object_types.push(ty);
         id
     }
 
-    pub fn push_enum_type(&mut self, ty: EnumType) -> EnumTypeId {
+    pub(crate) fn push_enum_type(&mut self, ty: EnumType) -> EnumTypeId {
         let id = EnumTypeId(self.enum_types.len());
         self.enum_types.push(ty);
         id

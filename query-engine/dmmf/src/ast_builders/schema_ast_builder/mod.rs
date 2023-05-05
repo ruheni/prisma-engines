@@ -188,13 +188,13 @@ impl<'a> AsRenderer<'a> for &'a EnumType {
     }
 }
 
-impl AsRenderer<'_> for InputObjectTypeId {
-    fn as_renderer(&self) -> Box<dyn Renderer> {
+impl<'a> AsRenderer<'a> for &'a InputObjectType {
+    fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
         Box::new(DmmfObjectRenderer::Input(*self))
     }
 
     fn is_already_rendered(&self, ctx: &RenderContext) -> bool {
-        ctx.already_rendered(&ctx.query_schema.db[*self].identifier)
+        ctx.already_rendered(&self.identifier)
     }
 }
 

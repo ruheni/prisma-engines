@@ -2,16 +2,14 @@ use super::*;
 
 #[derive(Debug)]
 pub(crate) enum DmmfObjectRenderer<'a> {
-    Input(InputObjectTypeId),
+    Input(&'a InputObjectType),
     Output(&'a ObjectType),
 }
 
 impl Renderer for DmmfObjectRenderer<'_> {
     fn render(&self, ctx: &mut RenderContext) {
         match &self {
-            DmmfObjectRenderer::Input(input) => {
-                let input_object = &ctx.query_schema.db[*input];
-
+            DmmfObjectRenderer::Input(input_object) => {
                 match &input_object.tag {
                     Some(ObjectTag::FieldRefType(_)) => self.render_field_ref_type(input_object, ctx),
                     _ => self.render_input_object(input_object, ctx),

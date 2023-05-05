@@ -156,7 +156,7 @@ impl<'a> AsRenderer<'a> for EnumType {
     }
 }
 
-impl<'a> AsRenderer<'a> for InputObjectTypeId {
+impl<'a> AsRenderer<'a> for &'a InputObjectType {
     fn as_renderer(&self) -> GqlRenderer<'a> {
         GqlRenderer::Object(GqlObjectRenderer::Input(*self))
     }
