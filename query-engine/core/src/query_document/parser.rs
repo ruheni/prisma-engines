@@ -790,7 +790,7 @@ impl QueryDocumentParser {
             ));
         }
 
-        map.set_tag(schema_object.tag.clone());
+        map.set_tag(schema_object.tag().cloned());
 
         Ok(map)
     }

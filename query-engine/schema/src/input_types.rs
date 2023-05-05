@@ -10,7 +10,7 @@ pub struct InputObjectType {
     pub identifier: Identifier,
     pub constraints: InputObjectTypeConstraints,
     pub(crate) fields: OnceCell<Vec<InputField>>,
-    pub tag: Option<ObjectTag>,
+    pub(crate) tag: Option<ObjectTag>,
 }
 
 /// Object tags help differentiating objects during parsing / raw input data processing,
@@ -51,6 +51,10 @@ impl Debug for InputObjectType {
 impl InputObjectType {
     pub fn get_fields(&self) -> impl ExactSizeIterator<Item = &InputField> {
         self.fields.get().unwrap().iter()
+    }
+
+    pub fn tag(&self) -> Option<&ObjectTag> {
+        self.tag.as_ref()
     }
 
     pub(crate) fn set_fields(&self, fields: Vec<InputField>) {

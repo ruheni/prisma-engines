@@ -113,14 +113,14 @@ impl<'a> BuilderContext<'a> {
     }
 
     /// Caches an output (object) type.
-    pub fn cache_output_type(&mut self, ident: Identifier, typ: ObjectType) -> OutputObjectTypeId {
+    pub(crate) fn cache_output_type(&mut self, ident: Identifier, typ: ObjectType) -> OutputObjectTypeId {
         let id = self.db.push_output_object_type(typ);
         self.output_types.insert(ident, id);
         id
     }
 
     /// Caches an enum type.
-    pub fn cache_enum_type(&mut self, ident: Identifier, e: EnumType) -> EnumTypeId {
+    pub(crate) fn cache_enum_type(&mut self, ident: Identifier, e: EnumType) -> EnumTypeId {
         let id = self.db.push_enum_type(e);
         self.enum_types.insert(ident, id);
         id

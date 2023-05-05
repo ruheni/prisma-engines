@@ -9,7 +9,7 @@ pub(crate) enum DmmfObjectRenderer<'a> {
 impl Renderer for DmmfObjectRenderer<'_> {
     fn render(&self, ctx: &mut RenderContext) {
         match &self {
-            DmmfObjectRenderer::Input(input_object) => match &input_object.tag {
+            DmmfObjectRenderer::Input(input_object) => match input_object.tag() {
                 Some(ObjectTag::FieldRefType(_)) => self.render_field_ref_type(input_object, ctx),
                 _ => self.render_input_object(input_object, ctx),
             },
@@ -34,7 +34,7 @@ impl DmmfObjectRenderer<'_> {
             rendered_fields.push(render_input_field(field, ctx));
         }
 
-        let meta = input_object.tag.as_ref().and_then(|tag| match tag {
+        let meta = input_object.tag().and_then(|tag| match tag {
             ObjectTag::WhereInputType(container) => Some(DmmfInputTypeMeta {
                 source: Some(container.name()),
             }),
@@ -70,7 +70,7 @@ impl DmmfObjectRenderer<'_> {
             rendered_fields.push(render_input_field(field, ctx));
         }
 
-        let allow_type = match &input_object.tag {
+        let allow_type = match input_object.tag() {
             Some(ObjectTag::FieldRefType(input_type)) => input_type,
             _ => unreachable!(),
         };
