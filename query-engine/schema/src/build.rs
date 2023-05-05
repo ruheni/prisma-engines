@@ -33,7 +33,7 @@ mod utils;
 pub use self::utils::{compound_id_field_name, compound_index_field_name};
 
 use self::{enum_types::*, utils::*};
-use crate::{db::QuerySchemaDatabase, *};
+use crate::{db::*, *};
 use cache::TypeRefCache;
 use prisma_models::{ast, Field as ModelField, InternalDataModel, ModelRef, RelationFieldRef, TypeIdentifier};
 use psl::{

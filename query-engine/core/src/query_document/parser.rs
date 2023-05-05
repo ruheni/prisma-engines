@@ -20,12 +20,12 @@ impl QueryDocumentParser {
     }
 
     // Public entry point to parsing the query document (as denoted by `selections`) against the `schema_object`.
-    pub fn parse(
+    pub fn parse<'a>(
         &self,
         selections: &[Selection],
-        schema_object: (OutputObjectTypeId, &ObjectType),
-        query_schema: &QuerySchema,
-    ) -> QueryParserResult<ParsedObject> {
+        schema_object: &'a ObjectType,
+        query_schema: &'a QuerySchema,
+    ) -> QueryParserResult<ParsedObject<'a>> {
         self.parse_object(
             Path::default(),
             Path::default(),

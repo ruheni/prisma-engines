@@ -3,7 +3,7 @@
 use crate::QueryParserResult;
 use indexmap::IndexMap;
 use prisma_models::{OrderBy, PrismaValue, ScalarFieldRef};
-use schema::{ObjectTag, OutputFieldId};
+use schema::ObjectTag;
 use std::ops::{Deref, DerefMut};
 
 pub(crate) type ParsedInputList = Vec<ParsedInputValue>;
@@ -75,28 +75,28 @@ impl DerefMut for ParsedInputMap {
 }
 
 #[derive(Debug, Clone)]
-pub struct ParsedObject {
-    pub fields: Vec<FieldPair>,
+pub struct ParsedObject<'a> {
+    pub fields: Vec<FieldPair<'a>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct FieldPair {
+pub struct FieldPair<'a> {
     /// The field parsed from the incoming query.
-    pub parsed_field: ParsedField,
+    pub parsed_field: ParsedField<'a>,
 
     /// The schema field that the parsed field corresponds to.
-    pub schema_field: OutputFieldId,
+    pub schema_field: &'a schema::OutputField,
 }
 
 #[derive(Debug, Clone)]
-pub struct ParsedField {
+pub struct ParsedField<'a> {
     pub name: String,
     pub alias: Option<String>,
     pub arguments: Vec<ParsedArgument>,
-    pub nested_fields: Option<ParsedObject>,
+    pub nested_fields: Option<ParsedObject<'a>>,
 }
 
-impl ParsedField {
+impl ParsedField<'_> {
     pub(crate) fn where_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap>> {
         self.look_arg("where")
     }
