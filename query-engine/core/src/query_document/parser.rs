@@ -658,7 +658,6 @@ impl QueryDocumentParser {
     ) -> QueryParserResult<ParsedInputMap> {
         let valid_field_names: IndexSet<&str> = schema_object
             .get_fields()
-            .iter()
             .map(|field| field.name.as_str())
             .collect();
         let given_field_names: IndexSet<&str> = object.iter().map(|(k, _)| k.as_str()).collect();
@@ -861,7 +860,6 @@ pub(crate) mod conversions {
         let name = i.identifier.name();
         let fields: Vec<validation::InputTypeDescriptionField> = i
             .get_fields()
-            .iter()
             .map(|field| {
                 let name = field.name.clone();
                 let type_names: Vec<String> = field

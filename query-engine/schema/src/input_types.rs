@@ -49,8 +49,8 @@ impl Debug for InputObjectType {
 }
 
 impl InputObjectType {
-    pub fn get_fields(&self) -> &Vec<InputField> {
-        self.fields.get().unwrap()
+    pub fn get_fields(&self) -> impl ExactSizeIterator<Item = &InputField> {
+        self.fields.get().unwrap().iter()
     }
 
     pub(crate) fn set_fields(&self, fields: Vec<InputField>) {
@@ -61,7 +61,7 @@ impl InputObjectType {
 
     /// True if fields are empty, false otherwise.
     pub(crate) fn is_empty(&self) -> bool {
-        self.get_fields().is_empty()
+        self.get_fields().len() == 0
     }
 
     pub fn find_field<T>(&self, name: T) -> Option<&InputField>
@@ -69,7 +69,7 @@ impl InputObjectType {
         T: Into<String>,
     {
         let name = name.into();
-        self.get_fields().iter().find(|f| f.name == name)
+        self.get_fields().find(|f| f.name == name)
     }
 
     /// Require exactly one field of the possible ones to be in the input.
