@@ -17,13 +17,13 @@ pub use self::{
     input_types::{InputField, InputObjectType, InputType, ObjectTag},
     output_types::{ObjectType, OutputField, OutputType},
     query_schema::{ConnectorContext, Identifier, QueryInfo, QuerySchema, QueryTag, ScalarType},
-    utils::{capitalize, scalar_filter_name},
 };
 
 use self::{
     db::{EnumTypeId, InputObjectTypeId, OutputObjectTypeId, QuerySchemaDatabase},
     identifier_type::IdentifierType,
     input_types::InputObjectTypeConstraints,
+    utils::*,
 };
 use std::sync::Arc;
 

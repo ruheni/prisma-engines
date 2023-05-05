@@ -63,13 +63,13 @@ impl JsonProtocolAdapter {
             match selected {
                 // $scalars: true
                 crate::SelectionSetValue::Shorthand(true) if SelectionSet::is_all_scalars(&selection_name) => {
-                    if let Some(schema_object) = field.field_type.as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type().as_object_type(&query_schema.db) {
                         Self::default_scalar_selection(schema_object, &mut selection);
                     }
                 }
                 // $composites: true
                 crate::SelectionSetValue::Shorthand(true) if SelectionSet::is_all_composites(&selection_name) => {
-                    if let Some(schema_object) = field.field_type.as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type().as_object_type(&query_schema.db) {
                         if let Some(container) = container {
                             Self::default_composite_selection(
                                 &mut selection,
@@ -95,7 +95,7 @@ impl JsonProtocolAdapter {
                 crate::SelectionSetValue::Shorthand(false) => (),
                 // <field_name>: { selection: { ... }, arguments: { ... } }
                 crate::SelectionSetValue::Nested(nested_query) => {
-                    if let Some(schema_object) = field.field_type.as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type().as_object_type(&query_schema.db) {
                         let schema_field = schema_object.find_field(&selection_name).ok_or_else(|| {
                             HandlerError::query_conversion(format!(
                                 "Unknown nested field '{}' for operation {} does not match any query.",
@@ -252,10 +252,10 @@ impl JsonProtocolAdapter {
         all_scalars_set: bool,
     ) -> crate::Result<Selection> {
         let nested_object_type = parent_field
-            .field_type
+            .field_type()
             .as_object_type(&query_schema.db)
             .and_then(|parent_object| parent_object.find_field(nested_field_name))
-            .and_then(|nested_field| nested_field.field_type.as_object_type(&query_schema.db))
+            .and_then(|nested_field| nested_field.field_type().as_object_type(&query_schema.db))
             .map(|nested_object| nested_object);
 
         if let Some(nested_object_type) = nested_object_type {
@@ -287,10 +287,10 @@ impl JsonProtocolAdapter {
 
     fn default_scalar_selection(schema_object: &ObjectType, selection: &mut Selection) {
         for scalar in schema_object.get_fields().iter().filter(|f| {
-            f.field_type.is_scalar()
-                || f.field_type.is_scalar_list()
-                || f.field_type.is_enum()
-                || f.field_type.is_enum_list()
+            f.field_type().is_scalar()
+                || f.field_type().is_scalar_list()
+                || f.field_type().is_enum()
+                || f.field_type().is_enum_list()
         }) {
             selection.push_nested_selection(Selection::with_name(scalar.name.to_owned()));
         }
@@ -314,7 +314,7 @@ impl JsonProtocolAdapter {
                         Self::default_composite_selection(
                             &mut nested_selection,
                             &ParentContainer::from(cf.typ()),
-                            schema_field.field_type.as_object_type(&query_schema.db).unwrap(),
+                            schema_field.field_type().as_object_type(&query_schema.db).unwrap(),
                             walked_fields,
                             query_schema,
                         )?;
@@ -348,7 +348,7 @@ impl JsonProtocolAdapter {
                                 Self::default_composite_selection(
                                     &mut nested_selection,
                                     &ParentContainer::from(cf.typ()),
-                                    schema_field.field_type.as_object_type(&query_schema.db).unwrap(),
+                                    schema_field.field_type().as_object_type(&query_schema.db).unwrap(),
                                     walked_fields,
                                     query_schema,
                                 )?;

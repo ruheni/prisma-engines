@@ -166,7 +166,7 @@ impl ObjectType {
 #[derive(Debug)]
 pub struct OutputField {
     pub name: String,
-    pub field_type: OutputType,
+    pub(super) field_type: OutputType,
 
     /// Arguments are input fields, but positioned in context of an output field
     /// instead of being attached to an input object.
@@ -195,6 +195,10 @@ impl OutputField {
 
     pub fn model(&self) -> Option<&ModelRef> {
         self.query_info.as_ref().and_then(|info| info.model.as_ref())
+    }
+
+    pub fn field_type(&self) -> &OutputType {
+        &self.field_type
     }
 
     pub fn is_find_unique(&self) -> bool {

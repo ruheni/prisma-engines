@@ -45,7 +45,7 @@ impl GqlFieldRenderer<'_> {
             format!("({})", rendered_args.join(", "))
         };
 
-        let rendered_type = field.field_type.as_renderer().render(ctx);
+        let rendered_type = field.field_type().as_renderer().render(ctx);
         let bang = if !field.is_nullable { "!" } else { "" };
         format!("{}{}: {}{}", field.name, rendered_args, rendered_type, bang)
     }

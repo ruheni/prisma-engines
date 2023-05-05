@@ -36,7 +36,7 @@ impl<'a> IrSerializer<'a> {
                     if self.output_field.is_nullable {
                         Item::Value(PrismaValue::Null)
                     } else {
-                        match self.output_field.field_type {
+                        match self.output_field.field_type() {
                             OutputType::List(_) => Item::list(Vec::new()),
                             _ => {
                                 return Err(CoreError::SerializationError(format!(

@@ -22,7 +22,7 @@ pub(super) fn render_input_field(input_field: &InputField, ctx: &mut RenderConte
 
 pub(super) fn render_output_field(field: &OutputField, ctx: &mut RenderContext) -> DmmfOutputField {
     let rendered_inputs = field.arguments.iter().map(|arg| render_input_field(arg, ctx)).collect();
-    let output_type = render_output_type(&field.field_type, ctx);
+    let output_type = render_output_type(field.field_type(), ctx);
 
     let output_field = DmmfOutputField {
         name: field.name.clone(),

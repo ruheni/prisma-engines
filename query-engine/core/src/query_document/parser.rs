@@ -97,14 +97,14 @@ impl QueryDocumentParser {
             query_schema,
         )
         .and_then(|arguments| {
-            if !selection.nested_selections().is_empty() && schema_field.field_type.is_scalar() {
+            if !selection.nested_selections().is_empty() && schema_field.field_type().is_scalar() {
                 Err(ValidationError::selection_set_on_scalar(
                     selection.name().to_string(),
                     selection_path.segments(),
                 ))
             } else {
                 // If the output type of the field is an object type of any form, validate the sub selection as well.
-                let nested_fields = schema_field.field_type.as_object_type(&query_schema.db).map(|obj| {
+                let nested_fields = schema_field.field_type().as_object_type(&query_schema.db).map(|obj| {
                     self.parse_object(
                         selection_path.clone(),
                         argument_path.clone(),
@@ -818,7 +818,7 @@ pub(crate) mod conversions {
             .iter()
             .map(|field| {
                 let name = field.name.to_owned();
-                let type_name = to_simplified_output_type_name(&field.field_type, query_schema);
+                let type_name = to_simplified_output_type_name(&field.field_type(), query_schema);
                 let is_relation = field.maps_to_relation(query_schema);
 
                 validation::OutputTypeDescriptionField::new(name, type_name, is_relation)
