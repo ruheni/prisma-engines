@@ -272,10 +272,6 @@ impl InputType {
         InputType::Scalar(ScalarType::UUID)
     }
 
-    pub(crate) fn xml() -> InputType {
-        InputType::Scalar(ScalarType::Xml)
-    }
-
     pub(crate) fn bytes() -> InputType {
         InputType::Scalar(ScalarType::Bytes)
     }

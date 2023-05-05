@@ -61,10 +61,6 @@ impl OutputType {
         OutputType::Scalar(ScalarType::UUID)
     }
 
-    pub fn xml() -> OutputType {
-        OutputType::Scalar(ScalarType::Xml)
-    }
-
     pub fn bytes() -> OutputType {
         OutputType::Scalar(ScalarType::Bytes)
     }

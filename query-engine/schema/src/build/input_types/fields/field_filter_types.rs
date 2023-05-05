@@ -291,9 +291,7 @@ fn full_scalar_filter_type(
             filters
         }
 
-        TypeIdentifier::Boolean | TypeIdentifier::Xml => {
-            equality_filters(ctx, mapped_scalar_type.clone(), nullable).collect()
-        }
+        TypeIdentifier::Boolean => equality_filters(ctx, mapped_scalar_type.clone(), nullable).collect(),
 
         TypeIdentifier::Bytes | TypeIdentifier::Enum(_) => equality_filters(ctx, mapped_scalar_type.clone(), nullable)
             .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))

@@ -37,7 +37,6 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
             TypeIdentifier::Json => map_scalar_input_type_for_field(ctx, sf),
             TypeIdentifier::DateTime => InputType::object(update_operations_object_type(ctx, "DateTime", sf, false)),
             TypeIdentifier::UUID => InputType::object(update_operations_object_type(ctx, "Uuid", sf, false)),
-            TypeIdentifier::Xml => InputType::object(update_operations_object_type(ctx, "Xml", sf, false)),
             TypeIdentifier::Bytes => InputType::object(update_operations_object_type(ctx, "Bytes", sf, false)),
 
             TypeIdentifier::Unsupported => unreachable!("No unsupported field should reach that path"),
