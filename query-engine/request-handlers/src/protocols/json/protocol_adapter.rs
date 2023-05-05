@@ -55,7 +55,7 @@ impl JsonProtocolAdapter {
         let all_scalars_set = query_selection.all_scalars();
         let all_composites_set = query_selection.all_composites();
 
-        let mut selection = Selection::new(&field.name, None, arguments, Vec::new());
+        let mut selection = Selection::new(field.name(), None, arguments, Vec::new());
 
         let json_selection = query_selection.selection();
 
@@ -99,11 +99,12 @@ impl JsonProtocolAdapter {
                         let schema_field = schema_object.find_field(&selection_name).ok_or_else(|| {
                             HandlerError::query_conversion(format!(
                                 "Unknown nested field '{}' for operation {} does not match any query.",
-                                selection_name, &field.name
+                                selection_name,
+                                field.name()
                             ))
                         })?;
 
-                        let field = container.and_then(|container| container.find_field(&schema_field.name));
+                        let field = container.and_then(|container| container.find_field(schema_field.name()));
                         let is_composite_field = field.as_ref().map(|f| f.is_composite()).unwrap_or(false);
                         let nested_container = field.map(|f| f.related_container());
 
@@ -292,7 +293,7 @@ impl JsonProtocolAdapter {
                 || f.field_type().is_enum()
                 || f.field_type().is_enum_list()
         }) {
-            selection.push_nested_selection(Selection::with_name(scalar.name.to_owned()));
+            selection.push_nested_selection(Selection::with_name(scalar.name().to_owned()));
         }
     }
 

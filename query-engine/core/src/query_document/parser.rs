@@ -86,7 +86,7 @@ impl QueryDocumentParser {
         schema_field: &'a OutputField,
         query_schema: &'a QuerySchema,
     ) -> QueryParserResult<FieldPair<'a>> {
-        let selection_path = selection_path.add(schema_field.name.clone());
+        let selection_path = selection_path.add(schema_field.name().clone());
 
         // Parse and validate all provided arguments for the field
         self.parse_arguments(
@@ -817,7 +817,7 @@ pub(crate) mod conversions {
             .get_fields()
             .iter()
             .map(|field| {
-                let name = field.name.to_owned();
+                let name = field.name().to_owned();
                 let type_name = to_simplified_output_type_name(&field.field_type(), query_schema);
                 let is_relation = field.maps_to_relation(query_schema);
 

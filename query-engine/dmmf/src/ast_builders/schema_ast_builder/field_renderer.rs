@@ -25,14 +25,14 @@ pub(super) fn render_output_field(field: &OutputField, ctx: &mut RenderContext) 
     let output_type = render_output_type(field.field_type(), ctx);
 
     let output_field = DmmfOutputField {
-        name: field.name.clone(),
+        name: field.name().clone(),
         args: rendered_inputs,
         output_type,
         is_nullable: field.is_nullable,
         deprecation: None,
     };
 
-    ctx.add_mapping(field.name.clone(), field.query_info());
+    ctx.add_mapping(field.name().clone(), field.query_info());
 
     output_field
 }

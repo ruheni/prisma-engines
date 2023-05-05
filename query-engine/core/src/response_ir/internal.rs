@@ -576,13 +576,16 @@ fn serialize_scalar(field: &OutputField, value: PrismaValue, schema: &QuerySchem
             }
             _ => Err(CoreError::SerializationError(format!(
                 "Attempted to serialize scalar list which contained non-scalar items of type '{:?}' for field {}.",
-                arc_type, field.name
+                arc_type,
+                field.name()
             ))),
         },
         (_, OutputType::Scalar(st)) => Ok(Item::Value(convert_prisma_value(field, value, st)?)),
         (pv, ot) => Err(CoreError::SerializationError(format!(
             "Attempted to serialize scalar '{}' with non-scalar compatible type '{:?}' for field {}.",
-            pv, ot, field.name
+            pv,
+            ot,
+            field.name()
         ))),
     }
 }
@@ -622,9 +625,9 @@ fn convert_prisma_value_graphql_protocol(
 
         (st, pv) => {
             return Err(crate::FieldConversionError::create(
-                field.name.clone(),
+                field.name().clone(),
                 format!("{st:?}"),
-                format!("{pv}"),
+                pv.to_string(),
             ))
         }
     };
@@ -672,9 +675,9 @@ fn convert_prisma_value_json_protocol(
 
         (st, pv) => {
             return Err(crate::FieldConversionError::create(
-                field.name.clone(),
+                field.name().to_owned(),
                 format!("{st:?}"),
-                format!("{pv}"),
+                pv.to_string(),
             ))
         }
     };

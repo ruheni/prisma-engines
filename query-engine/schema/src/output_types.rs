@@ -165,7 +165,7 @@ impl ObjectType {
 
 #[derive(Debug)]
 pub struct OutputField {
-    pub name: String,
+    pub(crate) name: String,
     pub(super) field_type: OutputType,
 
     /// Arguments are input fields, but positioned in context of an output field
@@ -180,6 +180,10 @@ pub struct OutputField {
 }
 
 impl OutputField {
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
     pub(crate) fn nullable(mut self) -> Self {
         self.is_nullable = true;
         self
