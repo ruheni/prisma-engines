@@ -204,6 +204,6 @@ impl<'a> AsRenderer<'a> for &'a ObjectType {
     }
 
     fn is_already_rendered(&self, ctx: &RenderContext) -> bool {
-        ctx.already_rendered(&self.identifier)
+        ctx.already_rendered(self.identifier())
     }
 }

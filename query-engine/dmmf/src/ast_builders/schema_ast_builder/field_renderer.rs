@@ -32,7 +32,7 @@ pub(super) fn render_output_field(field: &OutputField, ctx: &mut RenderContext) 
         deprecation: None,
     };
 
-    ctx.add_mapping(field.name.clone(), field.query_info.as_ref());
+    ctx.add_mapping(field.name.clone(), field.query_info());
 
     output_field
 }

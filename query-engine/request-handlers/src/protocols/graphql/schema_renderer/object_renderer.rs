@@ -48,11 +48,11 @@ impl<'a> GqlObjectRenderer<'a> {
     }
 
     fn render_output_object(&self, output_object: &ObjectType, ctx: &mut RenderContext) -> String {
-        if ctx.already_rendered(&output_object.identifier.name()) {
+        if ctx.already_rendered(&output_object.name()) {
             return "".into();
         } else {
             // This short circuits recursive processing for fields.
-            ctx.mark_as_rendered(output_object.identifier.name())
+            ctx.mark_as_rendered(output_object.name())
         }
 
         let fields = output_object.get_fields();
@@ -69,7 +69,7 @@ impl<'a> GqlObjectRenderer<'a> {
 
         let rendered = format!(
             "type {} {{\n{}\n}}",
-            output_object.identifier.name(),
+            output_object.name(),
             indented.join("\n")
         );
 

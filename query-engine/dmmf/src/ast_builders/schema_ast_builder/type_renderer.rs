@@ -8,8 +8,8 @@ pub(super) fn render_output_type(output_type: &OutputType, ctx: &mut RenderConte
             ctx.mark_to_be_rendered(&obj);
 
             let type_reference = DmmfTypeReference {
-                typ: obj.identifier.name(),
-                namespace: Some(obj.identifier.namespace().to_string()),
+                typ: obj.name(),
+                namespace: Some(obj.identifier().namespace().to_string()),
                 location: TypeLocation::OutputObjectTypes,
                 is_list: false,
             };

@@ -63,7 +63,7 @@ impl<'a> GqlTypeRenderer<'a> {
             OutputType::Object(obj) => {
                 let obj = &ctx.query_schema.db[*obj];
                 obj.as_renderer().render(ctx);
-                obj.identifier.name()
+                obj.name()
             }
 
             OutputType::Enum(et) => {

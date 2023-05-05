@@ -49,13 +49,13 @@ impl<'a> QueryGraphBuilder<'a> {
         let field_pair = parsed_object.fields.pop().unwrap();
         let serializer = Self::derive_serializer(&selections.pop().unwrap(), field_pair.schema_field);
 
-        if field_pair.schema_field.query_info.is_some() {
+        if field_pair.schema_field.query_info().is_some() {
             let graph = self.dispatch_build(field_pair)?;
             Ok((graph, serializer))
         } else {
             Err(QueryGraphBuilderError::SchemaError(format!(
                 "Expected query information to be attached on schema object '{}', field '{}'.",
-                root_object.identifier.name(),
+                root_object.name(),
                 field_pair.parsed_field.name
             )))
         }
@@ -63,7 +63,7 @@ impl<'a> QueryGraphBuilder<'a> {
 
     #[rustfmt::skip]
     fn dispatch_build(&self, field_pair: FieldPair<'a>) -> QueryGraphBuilderResult<QueryGraph> {
-        let query_info = field_pair.schema_field.query_info.as_ref().unwrap();
+        let query_info = field_pair.schema_field.query_info().unwrap();
         let parsed_field = field_pair.parsed_field;
         let connector_ctx = self.query_schema.context();
 

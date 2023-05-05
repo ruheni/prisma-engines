@@ -45,27 +45,27 @@ impl OutputType {
         OutputType::Scalar(ScalarType::Boolean)
     }
 
-    pub fn enum_type(containing: EnumTypeId) -> OutputType {
+    pub(crate) fn enum_type(containing: EnumTypeId) -> OutputType {
         OutputType::Enum(containing)
     }
 
-    pub fn date_time() -> OutputType {
+    pub(crate) fn date_time() -> OutputType {
         OutputType::Scalar(ScalarType::DateTime)
     }
 
-    pub fn json() -> OutputType {
+    pub(crate) fn json() -> OutputType {
         OutputType::Scalar(ScalarType::Json)
     }
 
-    pub fn uuid() -> OutputType {
+    pub(crate) fn uuid() -> OutputType {
         OutputType::Scalar(ScalarType::UUID)
     }
 
-    pub fn xml() -> OutputType {
+    pub(crate) fn xml() -> OutputType {
         OutputType::Scalar(ScalarType::Xml)
     }
 
-    pub fn bytes() -> OutputType {
+    pub(crate) fn bytes() -> OutputType {
         OutputType::Scalar(ScalarType::Bytes)
     }
 
@@ -112,7 +112,7 @@ impl OutputType {
 }
 
 pub struct ObjectType {
-    pub identifier: Identifier,
+    identifier: Identifier,
     fields: OnceCell<Vec<OutputField>>,
 
     // Object types can directly map to models.
@@ -140,6 +140,10 @@ impl ObjectType {
 
     pub fn identifier(&self) -> &Identifier {
         &self.identifier
+    }
+
+    pub fn name(&self) -> String {
+        self.identifier.name()
     }
 
     pub(crate) fn add_field(&mut self, field: OutputField) {
@@ -172,8 +176,7 @@ pub struct OutputField {
     /// States whether or not the field can be null.
     pub is_nullable: bool,
 
-    /// Relevant for resolving top level queries.
-    pub query_info: Option<QueryInfo>,
+    pub(super) query_info: Option<QueryInfo>,
 }
 
 impl OutputField {
@@ -198,7 +201,8 @@ impl OutputField {
         matches!(self.query_tag(), Some(&QueryTag::FindUnique))
     }
 
-    pub(crate) fn query_info(&self) -> Option<&QueryInfo> {
+    /// Relevant for resolving top level queries.
+    pub fn query_info(&self) -> Option<&QueryInfo> {
         self.query_info.as_ref()
     }
 

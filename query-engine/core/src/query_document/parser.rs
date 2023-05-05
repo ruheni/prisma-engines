@@ -806,13 +806,13 @@ pub(crate) mod conversions {
     use schema::QuerySchema;
     use user_facing_errors::query_engine::validation::{self, InputTypeDescription};
 
-    /// converts an schema object to the narrower validation::OutputTypeDescription
+    /// Converts an schema object to the narrower validation::OutputTypeDescription
     /// representation of an output field that is part of a validation error information.
     pub(crate) fn schema_object_to_output_type_description(
         o: &schema::ObjectType,
         query_schema: &QuerySchema,
     ) -> validation::OutputTypeDescription {
-        let name = o.identifier.name();
+        let name = o.name();
         let fields: Vec<validation::OutputTypeDescriptionField> = o
             .get_fields()
             .iter()
@@ -948,7 +948,7 @@ pub(crate) mod conversions {
         match typ {
             OutputType::Enum(e) => query_schema.db[*e].name(),
             OutputType::List(o) => format!("{}[]", to_simplified_output_type_name(o, query_schema)),
-            OutputType::Object(o) => query_schema.db[*o].identifier.name(),
+            OutputType::Object(o) => query_schema.db[*o].name(),
             OutputType::Scalar(s) => s.to_string(),
         }
     }

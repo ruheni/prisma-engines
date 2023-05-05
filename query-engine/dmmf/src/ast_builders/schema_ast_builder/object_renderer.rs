@@ -9,12 +9,10 @@ pub(crate) enum DmmfObjectRenderer<'a> {
 impl Renderer for DmmfObjectRenderer<'_> {
     fn render(&self, ctx: &mut RenderContext) {
         match &self {
-            DmmfObjectRenderer::Input(input_object) => {
-                match &input_object.tag {
-                    Some(ObjectTag::FieldRefType(_)) => self.render_field_ref_type(input_object, ctx),
-                    _ => self.render_input_object(input_object, ctx),
-                }
-            }
+            DmmfObjectRenderer::Input(input_object) => match &input_object.tag {
+                Some(ObjectTag::FieldRefType(_)) => self.render_field_ref_type(input_object, ctx),
+                _ => self.render_input_object(input_object, ctx),
+            },
             DmmfObjectRenderer::Output(output) => self.render_output_object(output, ctx),
         }
     }
@@ -87,12 +85,12 @@ impl DmmfObjectRenderer<'_> {
     }
 
     fn render_output_object(&self, output_object: &ObjectType, ctx: &mut RenderContext) {
-        if ctx.already_rendered(&output_object.identifier) {
+        if ctx.already_rendered(output_object.identifier()) {
             return;
         }
 
         // This will prevent the type and its fields to be re-rendered.
-        ctx.mark_as_rendered(output_object.identifier.clone());
+        ctx.mark_as_rendered(output_object.identifier().clone());
 
         let fields = output_object.get_fields();
         let mut rendered_fields: Vec<DmmfOutputField> = Vec::with_capacity(fields.len());
@@ -102,10 +100,10 @@ impl DmmfObjectRenderer<'_> {
         }
 
         let output_type = DmmfOutputType {
-            name: output_object.identifier.name(),
+            name: output_object.name(),
             fields: rendered_fields,
         };
 
-        ctx.add_output_type(output_object.identifier.clone(), output_type);
+        ctx.add_output_type(output_object.identifier().clone(), output_type);
     }
 }
