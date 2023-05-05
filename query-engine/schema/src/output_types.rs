@@ -150,8 +150,8 @@ impl ObjectType {
         self.fields.get_mut().unwrap().push(field)
     }
 
-    pub fn get_fields(&self) -> &[OutputField] {
-        self.fields.get().unwrap()
+    pub fn get_fields(&self) -> impl ExactSizeIterator<Item = &OutputField> {
+        self.fields.get().unwrap().iter()
     }
 
     pub(crate) fn set_fields(&self, fields: Vec<OutputField>) {
@@ -159,7 +159,7 @@ impl ObjectType {
     }
 
     pub fn find_field<'a>(&'a self, name: &str) -> Option<&'a OutputField> {
-        self.get_fields().iter().find(|f| f.name == name)
+        self.get_fields().find(|f| f.name == name)
     }
 }
 

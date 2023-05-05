@@ -815,7 +815,6 @@ pub(crate) mod conversions {
         let name = o.name();
         let fields: Vec<validation::OutputTypeDescriptionField> = o
             .get_fields()
-            .iter()
             .map(|field| {
                 let name = field.name().to_owned();
                 let type_name = to_simplified_output_type_name(&field.field_type(), query_schema);

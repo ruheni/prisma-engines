@@ -287,7 +287,7 @@ impl JsonProtocolAdapter {
     }
 
     fn default_scalar_selection(schema_object: &ObjectType, selection: &mut Selection) {
-        for scalar in schema_object.get_fields().iter().filter(|f| {
+        for scalar in schema_object.get_fields().filter(|f| {
             f.field_type().is_scalar()
                 || f.field_type().is_scalar_list()
                 || f.field_type().is_enum()

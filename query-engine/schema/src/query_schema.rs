@@ -76,13 +76,13 @@ impl QuerySchema {
         let mut query_map: HashMap<QueryInfo, usize> = HashMap::new();
         let mut mutation_map: HashMap<QueryInfo, usize> = HashMap::new();
 
-        for (field_idx, field) in db[query].get_fields().iter().enumerate() {
+        for (field_idx, field) in db[query].get_fields().enumerate() {
             if let Some(query_info) = field.query_info() {
                 query_map.insert(query_info.to_owned(), field_idx);
             }
         }
 
-        for (field_idx, field) in db[mutation].get_fields().iter().enumerate() {
+        for (field_idx, field) in db[mutation].get_fields().enumerate() {
             if let Some(query_info) = field.query_info() {
                 mutation_map.insert(query_info.to_owned(), field_idx);
             }
@@ -104,7 +104,7 @@ impl QuerySchema {
         T: Into<String>,
     {
         let name = name.into();
-        self.mutation().get_fields().iter().find(|f| f.name == name)
+        self.mutation().get_fields().find(|f| f.name == name)
     }
 
     pub fn find_query_field<T>(&self, name: T) -> Option<&OutputField>
@@ -112,7 +112,7 @@ impl QuerySchema {
         T: Into<String>,
     {
         let name = name.into();
-        self.query().get_fields().iter().find(|f| f.name == name)
+        self.query().get_fields().find(|f| f.name == name)
     }
 
     pub fn find_query_field_by_model_and_action(
@@ -125,7 +125,7 @@ impl QuerySchema {
 
         self.query_map
             .get(&query_info)
-            .map(|idx| &self.query().get_fields()[*idx])
+            .and_then(|idx| self.query().get_fields().nth(*idx))
     }
 
     pub fn find_mutation_field_by_model_and_action(
@@ -138,7 +138,7 @@ impl QuerySchema {
 
         self.mutation_map
             .get(&query_info)
-            .map(|idx| &self.mutation().get_fields()[*idx])
+            .and_then(|idx| self.mutation().get_fields().nth(*idx))
     }
 
     pub fn mutation(&self) -> &ObjectType {
