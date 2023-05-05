@@ -187,7 +187,7 @@ impl QueryDocumentParser {
                             value,
                         }),
                     ),
-                    None if !input_field_ref.is_required => None,
+                    None if !input_field_ref.is_required() => None,
                     _ => Some(Err(ValidationError::required_argument_missing(
                         selection_path.segments(),
                         argument_path.segments(),
@@ -694,7 +694,7 @@ impl QueryDocumentParser {
                         }
                     }
                     None => {
-                        if field.is_required {
+                        if field.is_required() {
                             Some(Err(ValidationError::required_argument_missing(
                                 selection_path.segments(),
                                 argument_path.segments(),
@@ -870,7 +870,7 @@ pub(crate) mod conversions {
                     .iter()
                     .map(|t| to_simplified_input_type_name(t, query_schema))
                     .collect();
-                validation::InputTypeDescriptionField::new(name, type_names, field.is_required)
+                validation::InputTypeDescriptionField::new(name, type_names, field.is_required())
             })
             .collect();
         validation::InputTypeDescription::new_object(name, fields)

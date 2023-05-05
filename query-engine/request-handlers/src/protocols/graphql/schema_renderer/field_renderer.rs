@@ -20,7 +20,7 @@ impl GqlFieldRenderer<'_> {
         let rendered_type = pick_input_type(input_field.field_types(ctx.query_schema))
             .as_renderer()
             .render(ctx);
-        let required = if input_field.is_required { "!" } else { "" };
+        let required = if input_field.is_required() { "!" } else { "" };
 
         format!("{}: {}{}", input_field.name, rendered_type, required)
     }
@@ -64,7 +64,7 @@ impl GqlFieldRenderer<'_> {
         let rendered_type = pick_input_type(arg.field_types(ctx.query_schema))
             .as_renderer()
             .render(ctx);
-        let required = if arg.is_required { "!" } else { "" };
+        let required = if arg.is_required() { "!" } else { "" };
 
         format!("{}: {}{}", arg.name, rendered_type, required)
     }

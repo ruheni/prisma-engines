@@ -117,9 +117,7 @@ pub struct InputField {
     /// Slice expressed as (start, len).
     field_types: Option<(usize, usize)>,
 
-    /// Indicates if the presence of the field on the higher input objects
-    /// is required, but doesn't state whether or not the input can be null.
-    pub is_required: bool,
+    is_required: bool,
 }
 
 impl InputField {
@@ -135,6 +133,12 @@ impl InputField {
     pub fn field_types<'a>(&self, query_schema: &'a QuerySchema) -> &'a [InputType] {
         let (start, len) = self.field_types.unwrap_or_default();
         &query_schema.db.input_field_types[start..(start + len)]
+    }
+
+    /// Indicates if the presence of the field on the higher input objects
+    /// is required, but doesn't state whether or not the input can be null.
+    pub fn is_required(&self) -> bool {
+        self.is_required
     }
 
     /// Sets the field as optional (not required to be present on the input).

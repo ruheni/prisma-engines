@@ -14,7 +14,7 @@ pub(super) fn render_input_field(input_field: &InputField, ctx: &mut RenderConte
     DmmfInputField {
         name: input_field.name.clone(),
         input_types: type_references,
-        is_required: input_field.is_required,
+        is_required: input_field.is_required(),
         is_nullable: nullable,
         deprecation: None,
     }
