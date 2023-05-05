@@ -82,7 +82,7 @@ fn serialize_aggregations(
                     let output_field = aggregate_object_type.find_field(field.name()).unwrap();
                     flattened.insert(
                         field.name().to_owned(),
-                        serialize_scalar(output_field.1, value, query_schema)?,
+                        serialize_scalar(output_field, value, query_schema)?,
                     );
                 }
 
@@ -236,13 +236,13 @@ fn find_nested_aggregate_output_field<'a>(
     nested_field_name: &str,
     query_schema: &'a QuerySchema,
 ) -> &'a OutputField {
-    let (_, nested_field) = object_type.find_field(nested_obj_name).unwrap();
+    let nested_field = object_type.find_field(nested_obj_name).unwrap();
     let nested_object_type = match nested_field.field_type.borrow() {
         OutputType::Object(obj) => &query_schema.db[*obj],
         _ => unreachable!("{} output must be an object.", nested_obj_name),
     };
 
-    nested_object_type.find_field(nested_field_name).unwrap().1
+    nested_object_type.find_field(nested_field_name).unwrap()
 }
 
 fn coerce_non_numeric(value: PrismaValue, output: &OutputType) -> PrismaValue {
@@ -358,7 +358,7 @@ fn serialize_objects(
         let mut object = HashMap::with_capacity(values.len());
 
         for (val, field) in values.into_iter().zip(fields.iter()) {
-            let (_, out_field) = typ.find_field(field.name()).unwrap();
+            let out_field = typ.find_field(field.name()).unwrap();
 
             match field {
                 Field::Composite(cf) => {
@@ -437,7 +437,7 @@ fn write_nested_items(
             }
 
             None => {
-                let (_, field) = enclosing_type.find_field(field_name).unwrap();
+                let field = enclosing_type.find_field(field_name).unwrap();
                 let default = match field.field_type.borrow() {
                     OutputType::List(_) => Item::list(Vec::new()),
                     _ if field.is_nullable => Item::Value(PrismaValue::Null),
@@ -468,7 +468,7 @@ fn process_nested_results(
         // todo Workaround, tb changed with flat reads.
         if let QueryResult::RecordSelection(ref rs) = nested_result {
             let name = rs.name.clone();
-            let (_, field) = enclosing_type.find_field(&name).unwrap();
+            let field = enclosing_type.find_field(&name).unwrap();
             let result = serialize_internal(nested_result, field, false, query_schema)?;
 
             nested_mapping.insert(name, result);
@@ -499,7 +499,7 @@ fn serialize_composite(
 
         PrismaValue::Object(pairs) => {
             let mut map = Map::new();
-            let (_, object_type) = out_field
+            let object_type = out_field
                 .field_type
                 .as_object_type(&query_schema.db)
                 .expect("Composite output field is not an object.");
@@ -515,7 +515,7 @@ fn serialize_composite(
                     .unwrap();
 
                 // The field on the output object type. Used for the actual serialization process.
-                let (_, inner_out_field) = object_type.find_field(inner_field.name()).unwrap();
+                let inner_out_field = object_type.find_field(inner_field.name()).unwrap();
 
                 match &inner_field {
                     Field::Composite(cf) => {

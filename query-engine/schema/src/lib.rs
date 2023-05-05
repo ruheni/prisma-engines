@@ -22,7 +22,7 @@ pub use self::{
 };
 
 use self::{
-    db::{EnumTypeId, OutputFieldId, OutputObjectTypeId, QuerySchemaDatabase},
+    db::{EnumTypeId, OutputObjectTypeId, QuerySchemaDatabase},
     identifier_type::IdentifierType,
     input_types::InputObjectTypeConstraints,
 };

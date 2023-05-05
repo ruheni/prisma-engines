@@ -1,10 +1,10 @@
 use super::*;
-use prisma_models::{prelude::ParentContainer, ScalarFieldRef};
+use prisma_models::{prelude::ParentContainer, ScalarField};
 
 pub(crate) mod group_by;
 pub(crate) mod plain;
 
-fn field_avg_output_type(ctx: &mut BuilderContext<'_>, field: &ScalarFieldRef) -> OutputType {
+fn field_avg_output_type<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarField) -> OutputType {
     match field.type_identifier() {
         TypeIdentifier::Int | TypeIdentifier::BigInt | TypeIdentifier::Float => OutputType::float(),
         TypeIdentifier::Decimal => OutputType::decimal(),
@@ -12,7 +12,7 @@ fn field_avg_output_type(ctx: &mut BuilderContext<'_>, field: &ScalarFieldRef) -
     }
 }
 
-pub fn collect_non_list_nor_json_fields(container: &ParentContainer) -> Vec<ScalarFieldRef> {
+pub(crate) fn collect_non_list_nor_json_fields(container: &ParentContainer) -> Vec<ScalarField> {
     container
         .fields()
         .into_iter()
@@ -23,7 +23,7 @@ pub fn collect_non_list_nor_json_fields(container: &ParentContainer) -> Vec<Scal
         .collect()
 }
 
-pub fn collect_numeric_fields(container: &ParentContainer) -> Vec<ScalarFieldRef> {
+pub(crate) fn collect_numeric_fields(container: &ParentContainer) -> Vec<ScalarField> {
     container
         .fields()
         .into_iter()
@@ -40,13 +40,13 @@ fn aggregation_field<F, G>(
     ctx: &mut BuilderContext<'_>,
     name: &str,
     model: &ModelRef,
-    fields: Vec<ScalarFieldRef>,
+    fields: Vec<ScalarField>,
     type_mapper: F,
     object_mapper: G,
     is_count: bool,
 ) -> Option<OutputField>
 where
-    F: Fn(&mut BuilderContext<'_>, &ScalarFieldRef) -> OutputType,
+    F: Fn(&mut BuilderContext<'_>, &ScalarField) -> OutputType,
     G: Fn(ObjectType) -> ObjectType,
 {
     if fields.is_empty() {
@@ -71,13 +71,13 @@ fn map_field_aggregation_object<F, G>(
     ctx: &mut BuilderContext<'_>,
     model: &ModelRef,
     suffix: &str,
-    fields: &[ScalarFieldRef],
+    fields: &[ScalarField],
     type_mapper: F,
     object_mapper: G,
     is_count: bool,
 ) -> OutputObjectTypeId
 where
-    F: Fn(&mut BuilderContext<'_>, &ScalarFieldRef) -> OutputType,
+    F: Fn(&mut BuilderContext<'_>, &ScalarField) -> OutputType,
     G: Fn(ObjectType) -> ObjectType,
 {
     let ident = Identifier::new_prisma(format!(

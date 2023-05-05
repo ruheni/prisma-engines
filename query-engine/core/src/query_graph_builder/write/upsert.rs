@@ -54,7 +54,7 @@ pub fn upsert_record(
     graph: &mut QueryGraph,
     connector_ctx: &ConnectorContext,
     model: ModelRef,
-    mut field: ParsedField,
+    mut field: ParsedField<'_>,
 ) -> QueryGraphBuilderResult<()> {
     let where_argument = field.where_arg()?.unwrap();
     let create_argument = field.create_arg()?.unwrap();
@@ -207,7 +207,7 @@ fn can_use_connector_native_upsert(
     where_field: &ParsedInputMap,
     create_argument: &ParsedInputMap,
     update_argument: &ParsedInputMap,
-    selection: &Option<ParsedObject>,
+    selection: &Option<ParsedObject<'_>>,
     connector_ctx: &ConnectorContext,
 ) -> bool {
     let has_nested_selects = has_nested_selects(selection);
@@ -249,7 +249,7 @@ fn is_unique_field(field_name: &str, model: &ModelRef) -> bool {
     }
 }
 
-fn has_nested_selects(selection: &Option<ParsedObject>) -> bool {
+fn has_nested_selects(selection: &Option<ParsedObject<'_>>) -> bool {
     if let Some(parsed_object) = selection {
         parsed_object
             .fields

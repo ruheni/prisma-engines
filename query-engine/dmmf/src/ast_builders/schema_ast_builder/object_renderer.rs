@@ -1,12 +1,12 @@
 use super::*;
 
 #[derive(Debug)]
-pub(crate) enum DmmfObjectRenderer {
+pub(crate) enum DmmfObjectRenderer<'a> {
     Input(InputObjectTypeId),
-    Output(OutputObjectTypeId),
+    Output(&'a ObjectType),
 }
 
-impl Renderer for DmmfObjectRenderer {
+impl Renderer for DmmfObjectRenderer<'_> {
     fn render(&self, ctx: &mut RenderContext) {
         match &self {
             DmmfObjectRenderer::Input(input) => {
@@ -17,12 +17,12 @@ impl Renderer for DmmfObjectRenderer {
                     _ => self.render_input_object(input_object, ctx),
                 }
             }
-            DmmfObjectRenderer::Output(output) => self.render_output_object(&ctx.query_schema.db[*output], ctx),
+            DmmfObjectRenderer::Output(output) => self.render_output_object(output, ctx),
         }
     }
 }
 
-impl DmmfObjectRenderer {
+impl DmmfObjectRenderer<'_> {
     fn render_input_object(&self, input_object: &InputObjectType, ctx: &mut RenderContext) {
         if ctx.already_rendered(&input_object.identifier) {
             return;

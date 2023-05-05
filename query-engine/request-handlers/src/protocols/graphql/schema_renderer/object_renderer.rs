@@ -1,21 +1,21 @@
 use super::*;
 
 #[derive(Debug)]
-pub enum GqlObjectRenderer {
+pub enum GqlObjectRenderer<'a> {
     Input(InputObjectTypeId),
-    Output(OutputObjectTypeId),
+    Output(&'a ObjectType),
 }
 
-impl Renderer for GqlObjectRenderer {
+impl<'a> Renderer for GqlObjectRenderer<'a> {
     fn render(&self, ctx: &mut RenderContext) -> String {
         match &self {
             GqlObjectRenderer::Input(input) => self.render_input_object(*input, ctx),
-            GqlObjectRenderer::Output(output) => self.render_output_object(&ctx.query_schema.db[*output], ctx),
+            GqlObjectRenderer::Output(output) => self.render_output_object(output, ctx),
         }
     }
 }
 
-impl GqlObjectRenderer {
+impl<'a> GqlObjectRenderer<'a> {
     fn render_input_object(&self, input_object: InputObjectTypeId, ctx: &mut RenderContext) -> String {
         let input_object = &ctx.query_schema.db[input_object];
         if ctx.already_rendered(&input_object.identifier.name()) {

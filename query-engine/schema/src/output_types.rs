@@ -13,35 +13,35 @@ pub enum OutputType {
 }
 
 impl OutputType {
-    pub fn list(containing: OutputType) -> OutputType {
+    pub(crate) fn list(containing: OutputType) -> OutputType {
         OutputType::List(Box::new(containing))
     }
 
-    pub fn object(containing: OutputObjectTypeId) -> OutputType {
+    pub(crate) fn object(containing: OutputObjectTypeId) -> OutputType {
         OutputType::Object(containing)
     }
 
-    pub fn string() -> OutputType {
+    pub(crate) fn string() -> OutputType {
         OutputType::Scalar(ScalarType::String)
     }
 
-    pub fn int() -> OutputType {
+    pub(crate) fn int() -> OutputType {
         OutputType::Scalar(ScalarType::Int)
     }
 
-    pub fn bigint() -> OutputType {
+    pub(crate) fn bigint() -> OutputType {
         OutputType::Scalar(ScalarType::BigInt)
     }
 
-    pub fn float() -> OutputType {
+    pub(crate) fn float() -> OutputType {
         OutputType::Scalar(ScalarType::Float)
     }
 
-    pub fn decimal() -> OutputType {
+    pub(crate) fn decimal() -> OutputType {
         OutputType::Scalar(ScalarType::Decimal)
     }
 
-    pub fn boolean() -> OutputType {
+    pub(crate) fn boolean() -> OutputType {
         OutputType::Scalar(ScalarType::Boolean)
     }
 
@@ -154,8 +154,8 @@ impl ObjectType {
         self.fields.set(fields).unwrap();
     }
 
-    pub fn find_field<'a>(&'a self, name: &str) -> Option<(usize, &'a OutputField)> {
-        self.get_fields().iter().enumerate().find(|(_, f)| f.name == name)
+    pub fn find_field<'a>(&'a self, name: &str) -> Option<&'a OutputField> {
+        self.get_fields().iter().find(|f| f.name == name)
     }
 }
 

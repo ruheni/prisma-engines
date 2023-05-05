@@ -198,12 +198,12 @@ impl AsRenderer<'_> for InputObjectTypeId {
     }
 }
 
-impl AsRenderer<'_> for OutputObjectTypeId {
-    fn as_renderer(&self) -> Box<dyn Renderer> {
-        Box::new(DmmfObjectRenderer::Output(*self))
+impl<'a> AsRenderer<'a> for &'a ObjectType {
+    fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
+        Box::new(DmmfObjectRenderer::Output(self))
     }
 
     fn is_already_rendered(&self, ctx: &RenderContext) -> bool {
-        ctx.already_rendered(&ctx.query_schema.db[*self].identifier)
+        ctx.already_rendered(&self.identifier)
     }
 }

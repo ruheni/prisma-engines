@@ -60,7 +60,7 @@ impl QueryDocumentParser {
             .map(|selection| {
                 let field_name = selection.name();
                 match schema_object.find_field(field_name) {
-                    Some((field_idx, field)) => self.parse_field(
+                    Some(field) => self.parse_field(
                         selection_path.clone(),
                         argument_path.clone(),
                         selection,

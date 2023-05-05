@@ -4,8 +4,8 @@ use schema::{InputType, ObjectTag, OutputType, ScalarType};
 pub(super) fn render_output_type(output_type: &OutputType, ctx: &mut RenderContext) -> DmmfTypeReference {
     match output_type {
         OutputType::Object(ref obj) => {
-            ctx.mark_to_be_rendered(obj);
             let obj = &ctx.query_schema.db[*obj];
+            ctx.mark_to_be_rendered(&obj);
 
             let type_reference = DmmfTypeReference {
                 typ: obj.identifier.name(),

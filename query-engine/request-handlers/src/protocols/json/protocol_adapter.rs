@@ -63,13 +63,13 @@ impl JsonProtocolAdapter {
             match selected {
                 // $scalars: true
                 crate::SelectionSetValue::Shorthand(true) if SelectionSet::is_all_scalars(&selection_name) => {
-                    if let Some((_, schema_object)) = field.field_type.as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type.as_object_type(&query_schema.db) {
                         Self::default_scalar_selection(schema_object, &mut selection);
                     }
                 }
                 // $composites: true
                 crate::SelectionSetValue::Shorthand(true) if SelectionSet::is_all_composites(&selection_name) => {
-                    if let Some((_, schema_object)) = field.field_type.as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type.as_object_type(&query_schema.db) {
                         if let Some(container) = container {
                             Self::default_composite_selection(
                                 &mut selection,
@@ -95,8 +95,8 @@ impl JsonProtocolAdapter {
                 crate::SelectionSetValue::Shorthand(false) => (),
                 // <field_name>: { selection: { ... }, arguments: { ... } }
                 crate::SelectionSetValue::Nested(nested_query) => {
-                    if let Some((_, schema_object)) = field.field_type.as_object_type(&query_schema.db) {
-                        let (_, schema_field) = schema_object.find_field(&selection_name).ok_or_else(|| {
+                    if let Some(schema_object) = field.field_type.as_object_type(&query_schema.db) {
+                        let schema_field = schema_object.find_field(&selection_name).ok_or_else(|| {
                             HandlerError::query_conversion(format!(
                                 "Unknown nested field '{}' for operation {} does not match any query.",
                                 selection_name, &field.name
@@ -254,9 +254,9 @@ impl JsonProtocolAdapter {
         let nested_object_type = parent_field
             .field_type
             .as_object_type(&query_schema.db)
-            .and_then(|(_, parent_object)| parent_object.find_field(nested_field_name))
-            .and_then(|(_, nested_field)| nested_field.field_type.as_object_type(&query_schema.db))
-            .map(|(_, nested_object)| nested_object);
+            .and_then(|parent_object| parent_object.find_field(nested_field_name))
+            .and_then(|nested_field| nested_field.field_type.as_object_type(&query_schema.db))
+            .map(|nested_object| nested_object);
 
         if let Some(nested_object_type) = nested_object_type {
             // case for a relation - we select all nested scalar fields and composite fields
@@ -308,13 +308,13 @@ impl JsonProtocolAdapter {
                 for cf in model.fields().composite() {
                     let schema_field = schema_object.find_field(cf.name());
 
-                    if let Some((_, schema_field)) = schema_field {
+                    if let Some(schema_field) = schema_field {
                         let mut nested_selection = Selection::with_name(cf.name());
 
                         Self::default_composite_selection(
                             &mut nested_selection,
                             &ParentContainer::from(cf.typ()),
-                            schema_field.field_type.as_object_type(&query_schema.db).unwrap().1,
+                            schema_field.field_type.as_object_type(&query_schema.db).unwrap(),
                             walked_fields,
                             query_schema,
                         )?;
@@ -329,7 +329,7 @@ impl JsonProtocolAdapter {
 
                     let schema_field = schema_object.find_field(&field_name);
 
-                    if let Some((_, schema_field)) = schema_field {
+                    if let Some(schema_field) = schema_field {
                         match f {
                             Field::Scalar(s) => {
                                 selection.push_nested_selection(Selection::with_name(s.name().to_owned()))
@@ -348,7 +348,7 @@ impl JsonProtocolAdapter {
                                 Self::default_composite_selection(
                                     &mut nested_selection,
                                     &ParentContainer::from(cf.typ()),
-                                    schema_field.field_type.as_object_type(&query_schema.db).unwrap().1,
+                                    schema_field.field_type.as_object_type(&query_schema.db).unwrap(),
                                     walked_fields,
                                     query_schema,
                                 )?;

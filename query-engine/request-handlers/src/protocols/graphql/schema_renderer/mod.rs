@@ -17,8 +17,8 @@ struct GqlSchemaRenderer {
 
 impl Renderer for GqlSchemaRenderer {
     fn render(&self, ctx: &mut RenderContext) -> String {
-        let _ = self.query_schema.query.as_renderer().render(ctx);
-        self.query_schema.mutation.as_renderer().render(ctx)
+        let _ = self.query_schema.query().as_renderer().render(ctx);
+        self.query_schema.mutation().as_renderer().render(ctx)
     }
 }
 
@@ -98,7 +98,7 @@ impl<'a> RenderContext<'a> {
 
 enum GqlRenderer<'a> {
     Schema(GqlSchemaRenderer),
-    Object(GqlObjectRenderer),
+    Object(GqlObjectRenderer<'a>),
     Type(GqlTypeRenderer<'a>),
     Field(GqlFieldRenderer<'a>),
     Enum(GqlEnumRenderer<'a>),
@@ -162,7 +162,7 @@ impl<'a> AsRenderer<'a> for InputObjectTypeId {
     }
 }
 
-impl<'a> AsRenderer<'a> for OutputObjectTypeId {
+impl<'a> AsRenderer<'a> for &'a ObjectType {
     fn as_renderer(&self) -> GqlRenderer<'a> {
         GqlRenderer::Object(GqlObjectRenderer::Output(*self))
     }

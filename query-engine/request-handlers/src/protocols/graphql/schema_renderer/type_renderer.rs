@@ -60,8 +60,9 @@ impl<'a> GqlTypeRenderer<'a> {
     fn render_output_type(&self, o: &OutputType, ctx: &mut RenderContext) -> String {
         match o {
             OutputType::Object(obj) => {
-                let _ = obj.as_renderer().render(ctx);
-                ctx.query_schema.db[*obj].identifier.name()
+                let obj = &ctx.query_schema.db[*obj];
+                obj.as_renderer().render(ctx);
+                obj.identifier.name()
             }
 
             OutputType::Enum(et) => {

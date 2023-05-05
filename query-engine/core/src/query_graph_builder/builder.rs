@@ -25,7 +25,7 @@ impl<'a> QueryGraphBuilder<'a> {
     }
 
     /// Maps an operation to a query.
-    pub fn build(self, operation: Operation) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer)> {
+    pub fn build(self, operation: Operation) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer<'a>)> {
         let _span = info_span!("prisma:engine:build_graph");
         match operation {
             Operation::Read(selection) => self.build_internal(selection, self.query_schema.query()),
@@ -36,8 +36,8 @@ impl<'a> QueryGraphBuilder<'a> {
     fn build_internal(
         &self,
         selection: Selection,
-        root_object: &ObjectType, // Either the query or mutation object.
-    ) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer)> {
+        root_object: &'a ObjectType, // Either the query or mutation object.
+    ) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer<'a>)> {
         let mut selections = vec![selection];
         let mut parsed_object = QueryDocumentParser::new(crate::executor::get_request_now()).parse(
             &selections,
@@ -106,7 +106,7 @@ impl<'a> QueryGraphBuilder<'a> {
         Ok(graph)
     }
 
-    fn derive_serializer(selection: &Selection, field: &'a OutputField) -> IrSerializer {
+    fn derive_serializer(selection: &Selection, field: &'a OutputField) -> IrSerializer<'a> {
         IrSerializer {
             key: selection
                 .alias()

@@ -12,7 +12,7 @@ pub(crate) fn map_output_field(ctx: &mut BuilderContext<'_>, model_field: &Model
     .nullable_if(!model_field.is_required())
 }
 
-pub(crate) fn map_field_output_type(ctx: &mut BuilderContext<'_>, model_field: &ModelField) -> OutputType {
+pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_field: &ModelField) -> OutputType {
     match model_field {
         ModelField::Scalar(sf) => map_scalar_output_type_for_field(ctx, sf),
         ModelField::Relation(rf) => map_relation_output_type(ctx, rf),
@@ -20,11 +20,11 @@ pub(crate) fn map_field_output_type(ctx: &mut BuilderContext<'_>, model_field: &
     }
 }
 
-pub(crate) fn map_scalar_output_type_for_field(ctx: &mut BuilderContext<'_>, field: &ScalarFieldRef) -> OutputType {
+pub(crate) fn map_scalar_output_type_for_field<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarFieldRef) -> OutputType {
     map_scalar_output_type(ctx, &field.type_identifier(), field.is_list())
 }
 
-pub(crate) fn map_scalar_output_type(ctx: &mut BuilderContext<'_>, typ: &TypeIdentifier, list: bool) -> OutputType {
+pub(crate) fn map_scalar_output_type<'a>(ctx: &mut BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> OutputType {
     let output_type = match typ {
         TypeIdentifier::String => OutputType::string(),
         TypeIdentifier::Float => OutputType::float(),

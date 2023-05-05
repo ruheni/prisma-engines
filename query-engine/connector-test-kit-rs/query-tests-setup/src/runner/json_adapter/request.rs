@@ -142,8 +142,8 @@ fn graphql_selection_to_json_selection(
         let can_have_nested_selection = schema_field
             .field_type
             .as_object_type(&query_schema.db)
-            .and_then(|(_, object)| object.find_field(&selection_name))
-            .and_then(|(_, field)| field.field_type.as_object_type(&query_schema.db))
+            .and_then(|object| object.find_field(&selection_name))
+            .and_then(|field| field.field_type.as_object_type(&query_schema.db))
             .is_some();
 
         if no_args && no_nested_selection {
@@ -159,11 +159,10 @@ fn graphql_selection_to_json_selection(
                 res.insert(selection_name, SelectionSetValue::Shorthand(true));
             }
         } else {
-            let (_, nested_field) = schema_field
+            let nested_field = schema_field
                 .field_type
                 .as_object_type(&query_schema.db)
                 .unwrap()
-                .1
                 .find_field(&selection_name)
                 .unwrap();
 

@@ -6,11 +6,11 @@ use tracing::Instrument;
 pub(crate) struct QueryPipeline<'conn> {
     graph: QueryGraph,
     interpreter: QueryInterpreter<'conn>,
-    serializer: IrSerializer,
+    serializer: IrSerializer<'conn>,
 }
 
 impl<'conn> QueryPipeline<'conn> {
-    pub(crate) fn new(graph: QueryGraph, interpreter: QueryInterpreter<'conn>, serializer: IrSerializer) -> Self {
+    pub(crate) fn new(graph: QueryGraph, interpreter: QueryInterpreter<'conn>, serializer: IrSerializer<'conn>) -> Self {
         Self {
             graph,
             interpreter,

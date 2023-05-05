@@ -166,7 +166,7 @@ async fn execute_self_contained(
 async fn execute_self_contained_without_retry(
     mut conn: Box<dyn Connection>,
     graph: QueryGraph,
-    serializer: IrSerializer,
+    serializer: IrSerializer<'_>,
     force_transactions: bool,
     query_schema: &QuerySchema,
     trace_id: Option<String>,
@@ -228,7 +228,7 @@ async fn execute_self_contained_with_retry(
 async fn execute_in_tx(
     conn: &mut Box<dyn Connection>,
     graph: QueryGraph,
-    serializer: IrSerializer,
+    serializer: IrSerializer<'_>,
     query_schema: &QuerySchema,
     trace_id: Option<String>,
 ) -> crate::Result<ResponseData> {
@@ -255,7 +255,7 @@ async fn execute_in_tx(
 async fn execute_on(
     conn: &mut dyn ConnectionLike,
     graph: QueryGraph,
-    serializer: IrSerializer,
+    serializer: IrSerializer<'_>,
     query_schema: &QuerySchema,
     trace_id: Option<String>,
 ) -> crate::Result<ResponseData> {
@@ -267,7 +267,7 @@ async fn execute_on(
         .await
 }
 
-fn build_graph(query_schema: &QuerySchema, operation: Operation) -> crate::Result<(QueryGraph, IrSerializer)> {
+fn build_graph(query_schema: &QuerySchema, operation: Operation) -> crate::Result<(QueryGraph, IrSerializer<'_>)> {
     let (query_graph, serializer) = QueryGraphBuilder::new(query_schema).build(operation)?;
 
     Ok((query_graph, serializer))

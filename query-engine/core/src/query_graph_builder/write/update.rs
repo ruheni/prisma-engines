@@ -15,7 +15,7 @@ pub fn update_record(
     graph: &mut QueryGraph,
     connector_ctx: &ConnectorContext,
     model: ModelRef,
-    mut field: ParsedField,
+    mut field: ParsedField<'_>,
 ) -> QueryGraphBuilderResult<()> {
     // "where"
     let where_arg: ParsedInputMap = field.arguments.lookup(args::WHERE).unwrap().value.try_into()?;
@@ -86,7 +86,7 @@ pub fn update_many_records(
     graph: &mut QueryGraph,
     connector_ctx: &ConnectorContext,
     model: ModelRef,
-    mut field: ParsedField,
+    mut field: ParsedField<'_>,
 ) -> QueryGraphBuilderResult<()> {
     graph.flag_transactional();
 
