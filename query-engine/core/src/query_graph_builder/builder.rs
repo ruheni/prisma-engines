@@ -28,19 +28,15 @@ impl<'a> QueryGraphBuilder<'a> {
     pub fn build(self, operation: Operation) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer)> {
         let _span = info_span!("prisma:engine:build_graph");
         match operation {
-            Operation::Read(selection) => {
-                self.build_internal(selection, (self.query_schema.query, self.query_schema.query()))
-            }
-            Operation::Write(selection) => {
-                self.build_internal(selection, (self.query_schema.mutation, self.query_schema.mutation()))
-            }
+            Operation::Read(selection) => self.build_internal(selection, self.query_schema.query()),
+            Operation::Write(selection) => self.build_internal(selection, self.query_schema.mutation()),
         }
     }
 
     fn build_internal(
         &self,
         selection: Selection,
-        root_object: (OutputObjectTypeId, &ObjectType), // Either the query or mutation object.
+        root_object: &ObjectType, // Either the query or mutation object.
     ) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer)> {
         let mut selections = vec![selection];
         let mut parsed_object = QueryDocumentParser::new(crate::executor::get_request_now()).parse(
@@ -52,24 +48,22 @@ impl<'a> QueryGraphBuilder<'a> {
         // Because we're processing root objects, there can only be one query / mutation.
         let field_pair = parsed_object.fields.pop().unwrap();
         let serializer = Self::derive_serializer(&selections.pop().unwrap(), field_pair.schema_field);
-        let schema_field = &self.query_schema.db[field_pair.schema_field.0].get_fields()[field_pair.schema_field.1];
 
-        if schema_field.query_info.is_some() {
+        if field_pair.schema_field.query_info.is_some() {
             let graph = self.dispatch_build(field_pair)?;
             Ok((graph, serializer))
         } else {
             Err(QueryGraphBuilderError::SchemaError(format!(
                 "Expected query information to be attached on schema object '{}', field '{}'.",
-                root_object.1.identifier.name(),
+                root_object.identifier.name(),
                 field_pair.parsed_field.name
             )))
         }
     }
 
     #[rustfmt::skip]
-    fn dispatch_build(&self, field_pair: FieldPair) -> QueryGraphBuilderResult<QueryGraph> {
-        let schema_field = &self.query_schema.db[field_pair.schema_field.0].get_fields()[field_pair.schema_field.1];
-        let query_info = schema_field.query_info.as_ref().unwrap();
+    fn dispatch_build(&self, field_pair: FieldPair<'a>) -> QueryGraphBuilderResult<QueryGraph> {
+        let query_info = field_pair.schema_field.query_info.as_ref().unwrap();
         let parsed_field = field_pair.parsed_field;
         let connector_ctx = self.query_schema.context();
 
@@ -112,7 +106,7 @@ impl<'a> QueryGraphBuilder<'a> {
         Ok(graph)
     }
 
-    fn derive_serializer(selection: &Selection, field: (OutputObjectTypeId, usize)) -> IrSerializer {
+    fn derive_serializer(selection: &Selection, field: &'a OutputField) -> IrSerializer {
         IrSerializer {
             key: selection
                 .alias()

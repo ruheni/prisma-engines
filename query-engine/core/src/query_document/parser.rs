@@ -40,14 +40,14 @@ impl QueryDocumentParser {
     /// In contrast, nullable and optional types on an input object are separate concepts.
     /// The above is the reason we don't need to check nullability here, as it is done by the output
     /// validation in the serialization step.
-    fn parse_object(
+    fn parse_object<'a>(
         &self,
         selection_path: Path,
         argument_path: Path,
         selections: &[Selection],
-        (object_id, schema_object): (OutputObjectTypeId, &ObjectType),
-        query_schema: &QuerySchema,
-    ) -> QueryParserResult<ParsedObject> {
+        schema_object: &'a ObjectType,
+        query_schema: &'a QuerySchema,
+    ) -> QueryParserResult<ParsedObject<'a>> {
         if selections.is_empty() {
             return Err(ValidationError::empty_selection(
                 selection_path.segments(),
@@ -64,7 +64,7 @@ impl QueryDocumentParser {
                         selection_path.clone(),
                         argument_path.clone(),
                         selection,
-                        ((object_id, field_idx), field),
+                        field,
                         query_schema,
                     ),
                     None => Err(ValidationError::unknown_selection_field(
@@ -78,14 +78,14 @@ impl QueryDocumentParser {
     }
 
     /// Parses and validates a selection against a schema (output) field.
-    fn parse_field(
+    fn parse_field<'a>(
         &self,
         selection_path: Path,
         argument_path: Path,
         selection: &Selection,
-        (field_id, schema_field): (OutputFieldId, &OutputField),
-        query_schema: &QuerySchema,
-    ) -> QueryParserResult<FieldPair> {
+        schema_field: &'a OutputField,
+        query_schema: &'a QuerySchema,
+    ) -> QueryParserResult<FieldPair<'a>> {
         let selection_path = selection_path.add(schema_field.name.clone());
 
         // Parse and validate all provided arguments for the field
@@ -128,7 +128,7 @@ impl QueryDocumentParser {
 
                 Ok(FieldPair {
                     parsed_field,
-                    schema_field: field_id,
+                    schema_field,
                 })
             }
         })

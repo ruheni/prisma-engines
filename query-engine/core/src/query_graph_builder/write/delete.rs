@@ -14,7 +14,7 @@ pub fn delete_record(
     graph: &mut QueryGraph,
     connector_ctx: &ConnectorContext,
     model: ModelRef,
-    mut field: ParsedField,
+    mut field: ParsedField<'_>,
 ) -> QueryGraphBuilderResult<()> {
     graph.flag_transactional();
 
@@ -60,7 +60,7 @@ pub fn delete_many_records(
     graph: &mut QueryGraph,
     connector_ctx: &ConnectorContext,
     model: ModelRef,
-    mut field: ParsedField,
+    mut field: ParsedField<'_>,
 ) -> QueryGraphBuilderResult<()> {
     graph.flag_transactional();
 
