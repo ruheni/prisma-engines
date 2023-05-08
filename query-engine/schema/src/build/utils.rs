@@ -1,5 +1,4 @@
 use super::*;
-use once_cell::sync::OnceCell;
 use prisma_models::{ast, walkers, DefaultKind};
 
 /// Object type convenience wrapper function.
@@ -12,8 +11,7 @@ pub fn object_type(ident: Identifier, fields: Vec<OutputField>, model: Option<as
 
 /// Input object type convenience wrapper function.
 pub fn input_object_type(ident: Identifier, fields: Vec<InputField>) -> InputObjectType {
-    let object_type = init_input_object_type(ident);
-
+    let mut object_type = init_input_object_type(ident);
     object_type.set_fields(fields);
     object_type
 }
@@ -23,7 +21,7 @@ pub fn init_input_object_type(ident: Identifier) -> InputObjectType {
     InputObjectType {
         identifier: ident,
         constraints: InputObjectTypeConstraints::default(),
-        fields: OnceCell::new(),
+        fields: Vec::new(),
         tag: None,
     }
 }
