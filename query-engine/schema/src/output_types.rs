@@ -4,78 +4,78 @@ use once_cell::sync::OnceCell;
 use prisma_models::{ast::ModelId, ModelRef};
 use std::fmt;
 
-#[derive(Debug, Clone)]
-pub enum OutputType {
+#[derive(Debug)]
+pub enum OutputType<'a> {
     Enum(EnumTypeId),
-    List(Box<OutputType>),
-    Object(OutputObjectTypeId),
+    List(Box<OutputType<'a>>),
+    Object(ObjectType<'a>),
     Scalar(ScalarType),
 }
 
 impl OutputType {
-    pub(crate) fn list(containing: OutputType) -> OutputType {
+    pub(crate) fn list(containing: OutputType) -> Self {
         OutputType::List(Box::new(containing))
     }
 
-    pub(crate) fn object(containing: OutputObjectTypeId) -> OutputType {
+    pub(crate) fn object(containing: OutputObjectTypeId) -> Self {
         OutputType::Object(containing)
     }
 
-    pub(crate) fn string() -> OutputType {
+    pub(crate) fn string() -> Self {
         OutputType::Scalar(ScalarType::String)
     }
 
-    pub(crate) fn int() -> OutputType {
+    pub(crate) fn int() -> Self {
         OutputType::Scalar(ScalarType::Int)
     }
 
-    pub(crate) fn bigint() -> OutputType {
+    pub(crate) fn bigint() -> Self {
         OutputType::Scalar(ScalarType::BigInt)
     }
 
-    pub(crate) fn float() -> OutputType {
+    pub(crate) fn float() -> Self {
         OutputType::Scalar(ScalarType::Float)
     }
 
-    pub(crate) fn decimal() -> OutputType {
+    pub(crate) fn decimal() -> Self {
         OutputType::Scalar(ScalarType::Decimal)
     }
 
-    pub(crate) fn boolean() -> OutputType {
+    pub(crate) fn boolean() -> Self {
         OutputType::Scalar(ScalarType::Boolean)
     }
 
-    pub(crate) fn enum_type(containing: EnumTypeId) -> OutputType {
+    pub(crate) fn enum_type(containing: EnumTypeId) -> Self {
         OutputType::Enum(containing)
     }
 
-    pub(crate) fn date_time() -> OutputType {
+    pub(crate) fn date_time() -> Self {
         OutputType::Scalar(ScalarType::DateTime)
     }
 
-    pub(crate) fn json() -> OutputType {
+    pub(crate) fn json() -> Self {
         OutputType::Scalar(ScalarType::Json)
     }
 
-    pub(crate) fn uuid() -> OutputType {
+    pub(crate) fn uuid() -> Self {
         OutputType::Scalar(ScalarType::UUID)
     }
 
-    pub(crate) fn xml() -> OutputType {
+    pub(crate) fn xml() -> Self {
         OutputType::Scalar(ScalarType::Xml)
     }
 
-    pub(crate) fn bytes() -> OutputType {
+    pub(crate) fn bytes() -> Self {
         OutputType::Scalar(ScalarType::Bytes)
     }
 
     /// Attempts to recurse through the type until an object type is found.
     /// Returns Some(ObjectTypeStrongRef) if ab object type is found, None otherwise.
-    pub fn as_object_type<'a>(&self, db: &'a QuerySchemaDatabase) -> Option<&'a ObjectType> {
+    pub fn as_object_type<'b>(&'b self) -> Option<&'b ObjectType<'a>> {
         match self {
             OutputType::Enum(_) => None,
-            OutputType::List(inner) => inner.as_object_type(db),
-            OutputType::Object(obj) => Some(&db[*obj]),
+            OutputType::List(inner) => inner.as_object_type(),
+            OutputType::Object(obj) => Some(obj),
             OutputType::Scalar(_) => None,
         }
     }
@@ -111,33 +111,24 @@ impl OutputType {
     }
 }
 
-pub struct ObjectType {
-    identifier: Identifier,
-    fields: OnceCell<Vec<OutputField>>,
+pub struct ObjectType<'a> {
+    pub(crate) identifier: Identifier,
+    pub(crate) fields: Box<dyn Fn() -> Box<dyn ExactSizeIterator<Item = OutputField<'a>> + 'a> + 'a>,
 
     // Object types can directly map to models.
-    model: Option<ModelId>,
+    pub(crate) model: Option<ModelId>,
 }
 
-impl Debug for ObjectType {
+impl Debug for ObjectType<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ObjectType")
             .field("identifier", &self.identifier)
-            .field("fields", &"#Fields Cell#")
             .field("model", &self.model)
             .finish()
     }
 }
 
-impl ObjectType {
-    pub(crate) fn new(ident: Identifier, model: Option<ModelId>) -> Self {
-        Self {
-            identifier: ident,
-            fields: OnceCell::new(),
-            model,
-        }
-    }
-
+impl<'a> ObjectType<'a> {
     pub fn identifier(&self) -> &Identifier {
         &self.identifier
     }
@@ -146,27 +137,20 @@ impl ObjectType {
         self.identifier.name()
     }
 
-    pub(crate) fn add_field(&mut self, field: OutputField) {
-        self.fields.get_mut().unwrap().push(field)
+    pub fn get_fields(&self) -> impl ExactSizeIterator<Item = OutputField<'a>> {
+        let fields = &self.fields;
+        fields()
     }
 
-    pub fn get_fields(&self) -> impl ExactSizeIterator<Item = &OutputField> {
-        self.fields.get().unwrap().iter()
-    }
-
-    pub(crate) fn set_fields(&self, fields: Vec<OutputField>) {
-        self.fields.set(fields).unwrap();
-    }
-
-    pub fn find_field<'a>(&'a self, name: &str) -> Option<&'a OutputField> {
+    pub fn find_field<'a>(&'a self, name: &str) -> Option<OutputField<'a>> {
         self.get_fields().find(|f| f.name == name)
     }
 }
 
 #[derive(Debug)]
-pub struct OutputField {
+pub struct OutputField<'a> {
     pub(crate) name: String,
-    pub(super) field_type: OutputType,
+    pub(super) field_type: OutputType<'a>,
 
     /// Arguments are input fields, but positioned in context of an output field
     /// instead of being attached to an input object.

@@ -89,7 +89,7 @@ fn create_nested_inputs(ctx: &mut BuilderContext<'_>) {
     }
 }
 
-fn create_execute_raw_field(ctx: &mut BuilderContext<'_>) -> OutputField {
+fn create_execute_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
     field(
         "executeRaw",
         vec![

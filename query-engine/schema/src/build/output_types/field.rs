@@ -12,7 +12,7 @@ pub(crate) fn map_output_field(ctx: &mut BuilderContext<'_>, model_field: &Model
     .nullable_if(!model_field.is_required())
 }
 
-pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_field: &ModelField) -> OutputType {
+pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_field: &ModelField) -> OutputType<'a> {
     match model_field {
         ModelField::Scalar(sf) => map_scalar_output_type_for_field(ctx, sf),
         ModelField::Relation(rf) => map_relation_output_type(ctx, rf),
@@ -20,11 +20,11 @@ pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_fiel
     }
 }
 
-pub(crate) fn map_scalar_output_type_for_field<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarFieldRef) -> OutputType {
+pub(crate) fn map_scalar_output_type_for_field<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarFieldRef) -> OutputType<'a> {
     map_scalar_output_type(ctx, &field.type_identifier(), field.is_list())
 }
 
-pub(crate) fn map_scalar_output_type<'a>(ctx: &mut BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> OutputType {
+pub(crate) fn map_scalar_output_type<'a>(ctx: &mut BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> OutputType<'a> {
     let output_type = match typ {
         TypeIdentifier::String => OutputType::string(),
         TypeIdentifier::Float => OutputType::float(),
@@ -48,7 +48,7 @@ pub(crate) fn map_scalar_output_type<'a>(ctx: &mut BuilderContext<'a>, typ: &Typ
     }
 }
 
-pub(crate) fn map_relation_output_type(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> OutputType {
+pub(crate) fn map_relation_output_type<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> OutputType<'a> {
     let related_model_obj = OutputType::object(objects::model::map_type(ctx, &rf.related_model()));
 
     if rf.is_list() {
@@ -58,7 +58,7 @@ pub(crate) fn map_relation_output_type(ctx: &mut BuilderContext<'_>, rf: &Relati
     }
 }
 
-fn map_composite_field_output_type(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> OutputType {
+fn map_composite_field_output_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> OutputType<'a> {
     let obj = objects::composite::map_type(ctx, &cf.typ());
     let typ = OutputType::Object(obj);
 
@@ -71,8 +71,8 @@ fn map_composite_field_output_type(ctx: &mut BuilderContext<'_>, cf: &CompositeF
 
 /// Returns an aggregation field with given name if the passed fields contains any fields.
 /// Field types inside the object type of the field are determined by the passed mapper fn.
-pub(crate) fn aggregation_relation_field<F, G>(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn aggregation_relation_field<'a, F, G>(
+    ctx: &mut BuilderContext<'a>,
     name: &str,
     model: &ModelRef,
     fields: Vec<RelationFieldRef>,
@@ -81,7 +81,7 @@ pub(crate) fn aggregation_relation_field<F, G>(
 ) -> Option<OutputField>
 where
     F: Fn(&mut BuilderContext<'_>, &RelationFieldRef) -> OutputType,
-    G: Fn(ObjectType) -> ObjectType,
+    G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
         None
@@ -99,19 +99,18 @@ where
 }
 
 /// Maps the object type for aggregations that operate on a field level.
-fn map_field_aggration_relation<F, G>(
-    ctx: &mut BuilderContext<'_>,
-    model: &ModelRef,
-    fields: &[RelationFieldRef],
+fn map_field_aggration_relation<'a, F, G>(
+    ctx: &mut BuilderContext<'a>,
+    model: &'a ModelRef,
+    fields: &'a [RelationFieldRef],
     type_mapper: F,
     object_mapper: G,
-) -> OutputObjectTypeId
+) -> ObjectType<'a>
 where
     F: Fn(&mut BuilderContext<'_>, &RelationFieldRef) -> OutputType,
-    G: Fn(ObjectType) -> ObjectType,
+    G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!("{}CountOutputType", capitalize(model.name())));
-    return_cached_output!(ctx, &ident);
 
     let fields: Vec<OutputField> = fields
         .iter()
@@ -126,6 +125,5 @@ where
         })
         .collect();
 
-    let object = object_mapper(object_type(ident.clone(), fields, None));
-    ctx.cache_output_type(ident, object)
+    object_mapper(object_type(ident.clone(), fields, None))
 }

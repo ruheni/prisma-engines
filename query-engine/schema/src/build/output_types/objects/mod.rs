@@ -16,15 +16,12 @@ pub(crate) fn initialize_caches(ctx: &mut BuilderContext<'_>) {
     composite::initialize_fields(ctx);
 }
 
-pub(crate) fn affected_records_object_type(ctx: &mut BuilderContext<'_>) -> OutputObjectTypeId {
+pub(crate) fn affected_records_object_type<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
     let ident = Identifier::new_prisma("AffectedRowsOutput".to_owned());
-    return_cached_output!(ctx, &ident);
 
-    let object_type = object_type(
+    object_type(
         ident.clone(),
         vec![field(AFFECTED_COUNT, vec![], OutputType::int(), None)],
         None,
-    );
-
-    ctx.cache_output_type(ident, object_type)
+    )
 }

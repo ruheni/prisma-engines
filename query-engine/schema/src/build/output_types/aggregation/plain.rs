@@ -3,9 +3,8 @@ use constants::aggregations::*;
 use std::convert::identity;
 
 /// Builds plain aggregation object type for given model (e.g. AggregateUser).
-pub(crate) fn aggregation_object_type(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputObjectTypeId {
+pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> ObjectType<'a> {
     let ident = Identifier::new_prisma(format!("Aggregate{}", capitalize(model.name())));
-    return_cached_output!(ctx, &ident);
 
     let object = ObjectType::new(ident.clone(), Some(model.id));
     let mut object_fields = vec![];

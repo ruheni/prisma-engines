@@ -2,11 +2,16 @@ use super::*;
 use prisma_models::{ast, walkers, DefaultKind};
 
 /// Object type convenience wrapper function.
-pub fn object_type(ident: Identifier, fields: Vec<OutputField>, model: Option<ast::ModelId>) -> ObjectType {
-    let object_type = ObjectType::new(ident, model);
-
-    object_type.set_fields(fields);
-    object_type
+pub fn object_type<'a>(
+    identifier: Identifier,
+    fields: Vec<OutputField>,
+    model: Option<ast::ModelId>,
+) -> ObjectType<'a> {
+    ObjectType {
+        identifier,
+        fields: Box::new(move || Box::new(fields.into_iter())),
+        model,
+    }
 }
 
 /// Input object type convenience wrapper function.
@@ -27,10 +32,10 @@ pub fn init_input_object_type(ident: Identifier) -> InputObjectType {
 }
 
 /// Field convenience wrapper function.
-pub fn field<T>(
+pub fn field<'a, T>(
     name: T,
     arguments: Vec<InputField>,
-    field_type: OutputType,
+    field_type: OutputType<'a>,
     query_info: Option<QueryInfo>,
 ) -> OutputField
 where

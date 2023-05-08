@@ -64,7 +64,7 @@ impl QueryDocumentParser {
                         selection_path.clone(),
                         argument_path.clone(),
                         selection,
-                        field,
+                        &field,
                         query_schema,
                     ),
                     None => Err(ValidationError::unknown_selection_field(
@@ -104,7 +104,7 @@ impl QueryDocumentParser {
                 ))
             } else {
                 // If the output type of the field is an object type of any form, validate the sub selection as well.
-                let nested_fields = schema_field.field_type().as_object_type(&query_schema.db).map(|obj| {
+                let nested_fields = schema_field.field_type().as_object_type().map(|obj| {
                     self.parse_object(
                         selection_path.clone(),
                         argument_path.clone(),
@@ -656,10 +656,7 @@ impl QueryDocumentParser {
         schema_object: &InputObjectType,
         query_schema: &QuerySchema,
     ) -> QueryParserResult<ParsedInputMap> {
-        let valid_field_names: IndexSet<&str> = schema_object
-            .get_fields()
-            .map(|field| field.name.as_str())
-            .collect();
+        let valid_field_names: IndexSet<&str> = schema_object.get_fields().map(|field| field.name.as_str()).collect();
         let given_field_names: IndexSet<&str> = object.iter().map(|(k, _)| k.as_str()).collect();
         let missing_field_names = valid_field_names.difference(&given_field_names);
 
