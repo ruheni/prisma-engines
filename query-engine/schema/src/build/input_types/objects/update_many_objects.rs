@@ -80,8 +80,8 @@ pub(crate) fn update_many_where_combination_object<'a>(
         let update_types = update_many_input_types(ctx, related_model, Some(parent_field.clone()));
 
         vec![
-            input_field(ctx, args::WHERE, InputType::object(where_input_object), None),
-            input_field(ctx, args::DATA, update_types, None),
+            input_field(args::WHERE, InputType::object(where_input_object), None),
+            input_field(args::DATA, update_types, None),
         ]
     });
     input_object

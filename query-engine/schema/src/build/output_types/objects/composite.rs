@@ -3,11 +3,11 @@
 use super::*;
 use prisma_models::CompositeType;
 
-pub(crate) fn composite_object_type<'a>(ctx: BuilderContext<'a>, composite: &CompositeType) -> ObjectType<'a> {
+pub(crate) fn composite_object_type<'a>(ctx: BuilderContext<'a>, composite: CompositeType) -> ObjectType<'a> {
     ObjectType {
         identifier: Identifier::new_model(composite.name().to_owned()),
         model: None,
-        fields: Box::new(|| compute_composite_object_type_fields(ctx, &composite)),
+        fields: Box::new(move || compute_composite_object_type_fields(ctx, &composite.clone())),
     }
 }
 

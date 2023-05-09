@@ -10,14 +10,14 @@ use prisma_models::{ModelRef, RelationFieldRef};
 /// Builds a create mutation field (e.g. createUser) for given model.
 pub(crate) fn create_one<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let field_name = format!("createOne{}", model.name());
-    let args = create_one_arguments(ctx, model).unwrap_or_default();
+    let args = create_one_arguments(ctx, model.clone()).unwrap_or_default();
 
     field(
         field_name,
         args,
-        OutputType::object(objects::model::model_object_type(ctx, &model)),
+        OutputType::object(objects::model::model_object_type(ctx, model.clone())),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::CreateOne,
         }),
     )
@@ -33,19 +33,17 @@ pub(crate) fn create_one_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef)
     if all_empty {
         None
     } else {
-        Some(vec![
-            input_field(ctx, args::DATA, create_types, None).optional_if(any_empty)
-        ])
+        Some(vec![input_field(args::DATA, create_types, None).optional_if(any_empty)])
     }
 }
 
 pub(crate) fn create_one_input_types<'a>(
     ctx: BuilderContext<'a>,
     model: ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    parent_field: Option<RelationFieldRef>,
 ) -> Vec<InputType<'a>> {
-    let checked_input = InputType::object(checked_create_input_type(ctx, &model, parent_field));
-    let unchecked_input = InputType::object(unchecked_create_input_type(ctx, &model, parent_field));
+    let checked_input = InputType::object(checked_create_input_type(ctx, model.clone(), parent_field.clone()));
+    let unchecked_input = InputType::object(unchecked_create_input_type(ctx, model, parent_field));
 
     vec![checked_input, unchecked_input]
 }
@@ -56,20 +54,20 @@ pub(crate) fn create_one_input_types<'a>(
 /// data integrity violations if used incorrectly.
 fn checked_create_input_type<'a>(
     ctx: BuilderContext<'a>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> InputObjectType<'a> {
     // We allow creation from both sides of the relation - which would lead to an endless loop of input types
     // if we would allow to create the parent from a child create that is already a nested create.
     // To solve it, we remove the parent relation from the input ("Without<Parent>").
     let ident = Identifier::new_prisma(IdentifierType::CheckedCreateInput(
         model.clone(),
-        parent_field.map(|pf| pf.related_field()),
+        parent_field.as_ref().map(|pf| pf.related_field()),
     ));
 
-    let input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(|| {
-        let filtered_fields = filter_checked_create_fields(model, parent_field);
+    let mut input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(move || {
+        let filtered_fields = filter_checked_create_fields(&model, parent_field.clone());
         let field_mapper = CreateDataInputFieldMapper::new_checked();
         field_mapper.map_all(ctx, filtered_fields)
     });
@@ -82,20 +80,20 @@ fn checked_create_input_type<'a>(
 /// lead to unintended data integrity violations if used incorrectly.
 fn unchecked_create_input_type<'a>(
     ctx: BuilderContext<'a>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> InputObjectType<'a> {
     // We allow creation from both sides of the relation - which would lead to an endless loop of input types
     // if we would allow to create the parent from a child create that is already a nested create.
     // To solve it, we remove the parent relation from the input ("Without<Parent>").
     let ident = Identifier::new_prisma(IdentifierType::UncheckedCreateInput(
         model.clone(),
-        parent_field.map(|pf| pf.related_field()),
+        parent_field.as_ref().map(|pf| pf.related_field()),
     ));
 
     let mut input_object = init_input_object_type(ident);
     input_object.fields = Box::new(|| {
-        let filtered_fields = filter_unchecked_create_fields(model, parent_field);
+        let filtered_fields = filter_unchecked_create_fields(&model, parent_field.as_ref());
         let field_mapper = CreateDataInputFieldMapper::new_unchecked();
         field_mapper.map_all(ctx, filtered_fields)
     });
@@ -103,7 +101,7 @@ fn unchecked_create_input_type<'a>(
 }
 
 /// Filters the given model's fields down to the allowed ones for checked create.
-fn filter_checked_create_fields(model: &ModelRef, parent_field: Option<&RelationFieldRef>) -> Vec<ModelField> {
+fn filter_checked_create_fields(model: &ModelRef, parent_field: Option<RelationFieldRef>) -> Vec<ModelField> {
     model.fields().filter_all(|field| {
         match field {
             // Scalars must be writable and not an autogenerated ID, which are disallowed for checked inputs

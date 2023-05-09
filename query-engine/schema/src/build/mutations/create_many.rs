@@ -15,7 +15,7 @@ pub(crate) fn create_many<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Optio
         Some(field(
             field_name,
             arguments,
-            OutputType::object(objects::affected_records_object_type(ctx)),
+            OutputType::object(objects::affected_records_object_type()),
             Some(QueryInfo {
                 model: Some(model),
                 tag: QueryTag::CreateMany,
@@ -29,10 +29,10 @@ pub(crate) fn create_many<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Optio
 /// Builds "skip_duplicates" and "data" arguments intended for the create many field.
 pub(crate) fn create_many_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Vec<InputField<'a>> {
     let create_many_type = InputType::object(create_many_object_type(ctx, model, None));
-    let data_arg = input_field(ctx, args::DATA, list_union_type(create_many_type, true), None);
+    let data_arg = input_field(args::DATA, list_union_type(create_many_type, true), None);
 
     if ctx.has_capability(ConnectorCapability::CreateSkipDuplicates) {
-        let skip_arg = input_field(ctx, args::SKIP_DUPLICATES, InputType::boolean(), None).optional();
+        let skip_arg = input_field(args::SKIP_DUPLICATES, InputType::boolean(), None).optional();
 
         vec![data_arg, skip_arg]
     } else {
@@ -51,12 +51,12 @@ pub(crate) fn create_many_object_type<'a>(
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CreateManyInput(
         model.clone(),
-        parent_field.map(|pf| pf.related_field()),
+        parent_field.as_ref().map(|pf| pf.related_field()),
     ));
 
-    let input_object = init_input_object_type(ident);
+    let mut input_object = init_input_object_type(ident);
     input_object.fields = Box::new(move || {
-        let filtered_fields = filter_create_many_fields(ctx, model, parent_field);
+        let filtered_fields = filter_create_many_fields(ctx, model.clone(), parent_field.clone());
         let field_mapper = CreateDataInputFieldMapper::new_checked();
         field_mapper.map_all(ctx, filtered_fields)
     });

@@ -21,7 +21,7 @@ fn nested_upsert_list_input_object<'a>(
 ) -> Option<InputObjectType<'a>> {
     let related_model = parent_field.related_model();
     let where_object = filter_objects::where_unique_object_type(ctx, related_model.clone());
-    let create_types = create_one::create_one_input_types(ctx, related_model.clone(), Some(&parent_field));
+    let create_types = create_one::create_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
     let update_types =
         update_one_objects::update_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
 
@@ -34,9 +34,9 @@ fn nested_upsert_list_input_object<'a>(
     let mut input_object = init_input_object_type(ident);
     input_object.fields = Box::new(move || {
         vec![
-            input_field(ctx, args::WHERE, InputType::object(where_object.clone()), None),
-            input_field(ctx, args::UPDATE, update_types.clone(), None),
-            input_field(ctx, args::CREATE, create_types.clone(), None),
+            input_field(args::WHERE, InputType::object(where_object.clone()), None),
+            input_field(args::UPDATE, update_types.clone(), None),
+            input_field(args::CREATE, create_types.clone(), None),
         ]
     });
 
@@ -49,7 +49,7 @@ fn nested_upsert_nonlist_input_object<'a>(
     parent_field: RelationFieldRef,
 ) -> Option<InputObjectType<'a>> {
     let related_model = parent_field.related_model();
-    let create_types = create_one::create_one_input_types(ctx, related_model.clone(), Some(&parent_field));
+    let create_types = create_one::create_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
 
     if create_types.iter().all(|typ| typ.is_empty()) {
         return None;
@@ -64,8 +64,8 @@ fn nested_upsert_nonlist_input_object<'a>(
                 update_one_objects::update_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
 
             let mut fields = vec![
-                input_field(ctx, args::UPDATE, update_types, None),
-                input_field(ctx, args::CREATE, create_types.clone(), None),
+                input_field(args::UPDATE, update_types, None),
+                input_field(args::CREATE, create_types.clone(), None),
             ];
 
             if ctx.has_feature(PreviewFeature::ExtendedWhereUnique) {

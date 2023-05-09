@@ -17,15 +17,13 @@ pub(crate) fn scalar_filter_object_type<'a>(
 
         let mut input_fields = vec![
             input_field(
-                ctx,
                 filters::AND,
                 vec![object_type.clone(), InputType::list(object_type.clone())],
                 None,
             )
             .optional(),
-            input_field(ctx, filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
+            input_field(filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
             input_field(
-                ctx,
                 filters::NOT,
                 vec![object_type.clone(), InputType::list(object_type)],
                 None,
@@ -58,15 +56,13 @@ where
 
         let mut fields = vec![
             input_field(
-                ctx,
                 filters::AND,
                 vec![object_type.clone(), InputType::list(object_type.clone())],
                 None,
             )
             .optional(),
-            input_field(ctx, filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
+            input_field(filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
             input_field(
-                ctx,
                 filters::NOT,
                 vec![object_type.clone(), InputType::list(object_type)],
                 None,
@@ -151,33 +147,31 @@ pub(crate) fn where_unique_object_type<'a>(ctx: BuilderContext<'a>, model: Model
                 let name = sf.name();
                 let typ = map_scalar_input_type_for_field(ctx, sf);
 
-                input_field(ctx, name, typ, None).optional()
+                input_field(name, typ, None).optional()
             })
             .collect();
 
         // @@unique compound fields.
         let compound_unique_fields: Vec<InputField<'_>> = compound_uniques
             .into_iter()
-            .map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional())
+            .map(|(name, typ)| input_field(name, InputType::object(typ), None).optional())
             .collect();
 
         // @@id compound field (there can be only one per model).
         let compound_id_field =
-            compound_id.map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional());
+            compound_id.map(|(name, typ)| input_field(name, InputType::object(typ), None).optional());
 
         // Boolean operators AND/OR/NOT, which are _not_ where unique inputs
         let where_input_type = InputType::object(where_object_type(ctx, ParentContainer::Model(model.clone())));
         let boolean_operators = vec![
             input_field(
-                ctx,
                 filters::AND,
                 vec![where_input_type.clone(), InputType::list(where_input_type.clone())],
                 None,
             )
             .optional(),
-            input_field(ctx, filters::OR, vec![InputType::list(where_input_type.clone())], None).optional(),
+            input_field(filters::OR, vec![InputType::list(where_input_type.clone())], None).optional(),
             input_field(
-                ctx,
                 filters::NOT,
                 vec![where_input_type.clone(), InputType::list(where_input_type)],
                 None,
@@ -225,7 +219,7 @@ fn compound_field_unique_object_type<'a>(
                 let name = field.name();
                 let typ = map_scalar_input_type_for_field(ctx, &field);
 
-                input_field(ctx, name, typ, None)
+                input_field(name, typ, None)
             })
             .collect()
     });
@@ -245,7 +239,7 @@ pub(crate) fn composite_equality_object<'a>(ctx: BuilderContext<'a>, cf: &'a Com
         let input_fields = composite_type.fields().map(|f| match f {
             ModelField::Scalar(sf) => {
                 let map_scalar_input_type_for_field = map_scalar_input_type_for_field(ctx, &sf);
-                input_field(ctx, sf.name(), map_scalar_input_type_for_field, None)
+                input_field(sf.name(), map_scalar_input_type_for_field, None)
                     .optional_if(!sf.is_required())
                     .nullable_if(!sf.is_required() && !sf.is_list())
             }
@@ -259,7 +253,7 @@ pub(crate) fn composite_equality_object<'a>(ctx: BuilderContext<'a>, cf: &'a Com
                     vec![InputType::object(composite_equality_object(ctx, &cf))]
                 };
 
-                input_field(ctx, cf.name(), types, None)
+                input_field(cf.name(), types, None)
                     .optional_if(!cf.is_required())
                     .nullable_if(!cf.is_required() && !cf.is_list())
             }

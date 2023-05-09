@@ -4,9 +4,9 @@ use prisma_models::{CompositeFieldRef, ScalarFieldRef};
 
 pub(crate) fn map_output_field<'a>(ctx: BuilderContext<'a>, model_field: ModelField) -> OutputField<'a> {
     field(
-        model_field.name(),
-        arguments::many_records_output_field_arguments(ctx, model_field),
-        map_field_output_type(ctx, model_field),
+        model_field.name().to_owned(),
+        arguments::many_records_output_field_arguments(ctx, model_field.clone()),
+        map_field_output_type(ctx, model_field.clone()),
         None,
     )
     .nullable_if(!model_field.is_required())
@@ -49,7 +49,7 @@ pub(crate) fn map_scalar_output_type<'a>(ctx: BuilderContext<'a>, typ: &TypeIden
 }
 
 pub(crate) fn map_relation_output_type<'a>(ctx: BuilderContext<'a>, rf: RelationFieldRef) -> OutputType<'a> {
-    let related_model_obj = OutputType::object(objects::model::model_object_type(ctx, &rf.related_model()));
+    let related_model_obj = OutputType::object(objects::model::model_object_type(ctx, rf.related_model()));
 
     if rf.is_list() {
         OutputType::list(related_model_obj)
@@ -59,7 +59,7 @@ pub(crate) fn map_relation_output_type<'a>(ctx: BuilderContext<'a>, rf: Relation
 }
 
 fn map_composite_field_output_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> OutputType<'a> {
-    let obj = objects::composite::composite_object_type(ctx, &cf.typ());
+    let obj = objects::composite::composite_object_type(ctx, cf.typ());
     let typ = OutputType::Object(obj);
 
     if cf.is_list() {
@@ -80,7 +80,7 @@ pub(crate) fn aggregation_relation_field<'a, F, G>(
     object_mapper: G,
 ) -> Option<OutputField<'a>>
 where
-    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a> + 'static,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
@@ -89,7 +89,7 @@ where
         let object_type = OutputType::object(map_field_aggration_relation(
             ctx,
             model,
-            &fields,
+            fields,
             type_mapper,
             object_mapper,
         ));
@@ -101,13 +101,13 @@ where
 /// Maps the object type for aggregations that operate on a field level.
 fn map_field_aggration_relation<'a, F, G>(
     ctx: BuilderContext<'a>,
-    model: &'a ModelRef,
-    fields: &'a [RelationFieldRef],
+    model: &ModelRef,
+    fields: Vec<RelationFieldRef>,
     type_mapper: F,
     object_mapper: G,
 ) -> ObjectType<'a>
 where
-    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a> + 'static,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!("{}CountOutputType", capitalize(model.name())));
@@ -115,9 +115,10 @@ where
     object_mapper(ObjectType {
         identifier: ident,
         model: None,
-        fields: Box::new(|| {
+        fields: Box::new(move || {
             fields
-                .iter()
+                .clone()
+                .into_iter()
                 .map(|rf| {
                     let mut args = vec![];
 
@@ -125,7 +126,7 @@ where
                         args.push(arguments::where_argument(ctx, &rf.related_model()))
                     }
 
-                    field(rf.name(), args, type_mapper(ctx, rf), None)
+                    field(rf.name(), args, type_mapper(ctx, &rf), None)
                 })
                 .collect()
         }),

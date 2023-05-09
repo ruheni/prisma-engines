@@ -6,8 +6,7 @@ pub(crate) fn model_object_type<'a>(ctx: BuilderContext<'a>, model: ModelRef) ->
     ObjectType {
         identifier: Identifier::new_model(IdentifierType::Model(model.clone())),
         model: Some(model.id),
-        fields: Box::new(|| {
-            let obj = model_object_type(ctx, model);
+        fields: Box::new(move || {
             let mut fields = compute_model_object_type_fields(ctx, &model);
 
             // Add _count field. Only include to-many fields.

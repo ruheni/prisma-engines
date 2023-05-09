@@ -45,9 +45,8 @@ fn create_execute_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a>
     field(
         "executeRaw",
         vec![
-            input_field(ctx, "query", InputType::string(), None),
+            input_field("query", InputType::string(), None),
             input_field(
-                ctx,
                 "parameters",
                 InputType::json_list(),
                 Some(DefaultKind::Single(PrismaValue::String("[]".into()))),
@@ -66,9 +65,8 @@ fn create_query_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
     field(
         "queryRaw",
         vec![
-            input_field(ctx, "query", InputType::string(), None),
+            input_field("query", InputType::string(), None),
             input_field(
-                ctx,
                 "parameters",
                 InputType::json_list(),
                 Some(DefaultKind::Single(PrismaValue::String("[]".into()))),
@@ -86,7 +84,7 @@ fn create_query_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
 fn create_mongodb_run_command_raw<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
     field(
         "runCommandRaw",
-        vec![input_field(ctx, "command", InputType::json(), None)],
+        vec![input_field("command", InputType::json(), None)],
         OutputType::json(),
         Some(QueryInfo {
             tag: QueryTag::RunCommandRaw,
@@ -103,9 +101,9 @@ fn delete_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Optio
         field(
             field_name,
             args,
-            OutputType::object(objects::model::model_object_type(ctx, &model)),
+            OutputType::object(objects::model::model_object_type(ctx, model.clone())),
             Some(QueryInfo {
-                model: Some(model.clone()),
+                model: Some(model),
                 tag: QueryTag::DeleteOne,
             }),
         )
@@ -121,7 +119,7 @@ fn delete_many_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Outpu
     field(
         field_name,
         arguments,
-        OutputType::object(objects::affected_records_object_type(ctx)),
+        OutputType::object(objects::affected_records_object_type()),
         Some(QueryInfo {
             model: Some(model.clone()),
             tag: QueryTag::DeleteMany,
@@ -137,9 +135,9 @@ fn update_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Optio
         field(
             field_name,
             args,
-            OutputType::object(objects::model::model_object_type(ctx, &model)),
+            OutputType::object(objects::model::model_object_type(ctx, model.clone())),
             Some(QueryInfo {
-                model: Some(model.clone()),
+                model: Some(model),
                 tag: QueryTag::UpdateOne,
             }),
         )
@@ -155,7 +153,7 @@ fn update_many_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Outpu
     field(
         field_name,
         arguments,
-        OutputType::object(objects::affected_records_object_type(ctx)),
+        OutputType::object(objects::affected_records_object_type()),
         Some(QueryInfo {
             model: Some(model.clone()),
             tag: QueryTag::UpdateMany,
@@ -165,15 +163,15 @@ fn update_many_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Outpu
 
 /// Builds an upsert mutation field (e.g. upsertUser) for given model.
 fn upsert_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
-    arguments::upsert_arguments(ctx, model).map(|args| {
+    arguments::upsert_arguments(ctx, model.clone()).map(|args| {
         let field_name = format!("upsertOne{}", model.name());
 
         field(
             field_name,
             args,
-            OutputType::object(objects::model::model_object_type(ctx, &model)),
+            OutputType::object(objects::model::model_object_type(ctx, model.clone())),
             Some(QueryInfo {
-                model: Some(model.clone()),
+                model: Some(model),
                 tag: QueryTag::UpsertOne,
             }),
         )

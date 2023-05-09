@@ -25,11 +25,11 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             TypeIdentifier::Json if supports_advanced_json => {
                 let enum_type = InputType::enum_type(json_null_input_enum(ctx, !sf.is_required()));
 
-                input_field(ctx, sf.name(), vec![enum_type, typ], sf.default_value())
+                input_field(sf.name(), vec![enum_type, typ], sf.default_value())
                     .optional_if(!sf.is_required() || sf.default_value().is_some() || sf.is_updated_at())
             }
 
-            _ => input_field(ctx, sf.name(), typ, sf.default_value())
+            _ => input_field(sf.name(), typ, sf.default_value())
                 .optional_if(!sf.is_required() || sf.default_value().is_some() || sf.is_updated_at())
                 .nullable_if(!sf.is_required()),
         }
@@ -42,7 +42,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         let input_object = {
             let mut input_object = input_object_type(
                 ident,
-                Box::new(|| vec![input_field(ctx, operations::SET, typ.clone(), None)]),
+                Box::new(move || vec![input_field(operations::SET, typ.clone(), None)]),
             );
             input_object.require_exactly_one_field();
             input_object
@@ -51,7 +51,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         let input_type = InputType::object(input_object);
 
         // Shorthand type (`list_field: <typ>`) + full object (`list_field: { set: { <typ> }}`)
-        input_field(ctx, sf.name(), vec![input_type, typ], sf.default_value()).optional()
+        input_field(sf.name(), vec![input_type, typ], sf.default_value()).optional()
     }
 
     fn map_relation<'a>(&self, ctx: BuilderContext<'a>, rf: RelationFieldRef) -> InputField<'a> {
@@ -66,7 +66,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             let mut fields = vec![];
 
             if rf.related_model().supports_create_operation() {
-                fields.push(input_fields::nested_create_one_input_field(ctx, &rf));
+                fields.push(input_fields::nested_create_one_input_field(ctx, rf.clone()));
 
                 append_opt(
                     &mut fields,
@@ -90,7 +90,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             .into_iter()
             .all(|scalar_field| scalar_field.default_value().is_some());
 
-        let input_field = input_field(ctx, rf.name(), InputType::object(input_object), None);
+        let input_field = input_field(rf.name(), InputType::object(input_object), None);
 
         if rf.is_required() && !all_required_scalar_fields_have_defaults {
             input_field
@@ -104,7 +104,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         let shorthand_type = InputType::Object(composite_create_object_type(ctx, &cf));
 
         // Operation envelope object.
-        let envelope_type = InputType::Object(composite_create_envelope_object_type(ctx, &cf));
+        let envelope_type = InputType::Object(composite_create_envelope_object_type(ctx, cf.clone()));
 
         // If the composite field in _not_ on a model, then it's nested and we're skipping the create envelope for now.
         // (This allows us to simplify the parsing code for now.)
@@ -118,7 +118,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             input_types.push(InputType::list(shorthand_type));
         }
 
-        input_field(ctx, cf.name().to_owned(), input_types, None)
+        input_field(cf.name().to_owned(), input_types, None)
             .nullable_if(!cf.is_required() && !cf.is_list())
             .optional_if(!cf.is_required())
     }
@@ -132,22 +132,24 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
 ///   ... more ops ...
 /// }
 /// ```
-fn composite_create_envelope_object_type<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
+fn composite_create_envelope_object_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateEnvelopeInput(cf.typ(), cf.arity()));
+    let cf_is_list = cf.is_list();
+    let cf_is_required = cf.is_required();
 
     let mut input_object = init_input_object_type(ident);
     input_object.require_exactly_one_field();
     input_object.set_tag(ObjectTag::CompositeEnvelope);
     input_object.fields = Box::new(|| {
-        let create_input = InputType::Object(composite_create_object_type(ctx, cf));
+        let create_input = InputType::Object(composite_create_object_type(ctx, &cf));
         let mut input_types = vec![create_input.clone()];
 
-        if cf.is_list() {
+        if cf_is_list {
             input_types.push(InputType::list(create_input));
         }
 
-        let set_field = input_field(ctx, "set", input_types, None)
-            .nullable_if(!cf.is_required() && !cf.is_list())
+        let set_field = input_field("set", input_types, None)
+            .nullable_if(!cf_is_required && !cf_is_list)
             .optional();
 
         vec![set_field]
@@ -155,10 +157,7 @@ fn composite_create_envelope_object_type<'a>(ctx: BuilderContext<'a>, cf: &Compo
     input_object
 }
 
-pub(crate) fn composite_create_object_type<'a>(
-    ctx: BuilderContext<'a>,
-    cf: &'a CompositeFieldRef,
-) -> InputObjectType<'a> {
+pub(crate) fn composite_create_object_type<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
     // It's called "Create" input because it's used across multiple create-type operations, not only "set".
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateInput(cf.typ()));
 

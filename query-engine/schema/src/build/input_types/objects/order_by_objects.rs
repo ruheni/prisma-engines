@@ -117,7 +117,7 @@ fn orderby_field_mapper<'a>(
             let related_model = rf.related_model();
             let to_many_aggregate_type = order_by_to_many_aggregate_object_type(ctx, &related_model.into());
 
-            Some(input_field(ctx, rf.name(), InputType::object(to_many_aggregate_type), None).optional())
+            Some(input_field(rf.name(), InputType::object(to_many_aggregate_type), None).optional())
         }
 
         // To-one relation field.
@@ -125,7 +125,7 @@ fn orderby_field_mapper<'a>(
             let related_model = rf.related_model();
             let related_object_type = order_by_object_type(ctx, related_model.into(), options);
 
-            Some(input_field(ctx, rf.name(), InputType::object(related_object_type), None).optional())
+            Some(input_field(rf.name(), InputType::object(related_object_type), None).optional())
         }
 
         // Scalar field.
@@ -140,27 +140,19 @@ fn orderby_field_mapper<'a>(
                 types.push(InputType::object(sort_nulls_object_type(ctx)));
             }
 
-            Some(input_field(ctx, sf.name(), types, None).optional())
+            Some(input_field(sf.name(), types, None).optional())
         }
 
         // Composite field.
         ModelField::Composite(cf) if cf.is_list() => {
             let to_many_aggregate_type = order_by_to_many_aggregate_object_type(ctx, &(cf.typ()).into());
-            Some(
-                input_field(
-                    ctx,
-                    cf.name().to_owned(),
-                    InputType::object(to_many_aggregate_type),
-                    None,
-                )
-                .optional(),
-            )
+            Some(input_field(cf.name().to_owned(), InputType::object(to_many_aggregate_type), None).optional())
         }
 
         ModelField::Composite(cf) => {
             let composite_order_object_type = order_by_object_type(ctx, cf.clone().typ().into(), OrderByOptions::new());
 
-            Some(input_field(ctx, cf.name(), InputType::object(composite_order_object_type), None).optional())
+            Some(input_field(cf.name(), InputType::object(composite_order_object_type), None).optional())
         }
 
         _ => None,
@@ -176,8 +168,8 @@ fn sort_nulls_object_type<'a>(ctx: BuilderContext<'a>) -> InputObjectType<'a> {
         let nulls_order_enum_type = nulls_order_enum(ctx);
 
         vec![
-            input_field(ctx, ordering::SORT, InputType::Enum(sort_order_enum_type), None),
-            input_field(ctx, ordering::NULLS, InputType::Enum(nulls_order_enum_type), None).optional(),
+            input_field(ordering::SORT, InputType::Enum(sort_order_enum_type), None),
+            input_field(ordering::NULLS, InputType::Enum(nulls_order_enum_type), None).optional(),
         ]
     });
     input_object
@@ -194,7 +186,7 @@ fn order_by_field_aggregate<'a>(
         None
     } else {
         let ty = InputType::object(order_by_object_type_aggregate(suffix, ctx, container, scalar_fields));
-        Some(input_field(ctx, name, ty, None).optional())
+        Some(input_field(name, ty, None).optional())
     }
 }
 
@@ -215,7 +207,7 @@ fn order_by_object_type_aggregate<'a>(
         let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
         scalar_fields
             .iter()
-            .map(|sf| input_field(ctx, sf.name(), sort_order_enum.clone(), None).optional())
+            .map(|sf| input_field(sf.name(), sort_order_enum.clone(), None).optional())
             .collect()
     });
 
@@ -231,7 +223,7 @@ fn order_by_to_many_aggregate_object_type<'a>(
     input_object.require_exactly_one_field();
     input_object.fields = Box::new(|| {
         let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
-        vec![input_field(ctx, aggregations::UNDERSCORE_COUNT, sort_order_enum, None).optional()]
+        vec![input_field(aggregations::UNDERSCORE_COUNT, sort_order_enum, None).optional()]
     });
     input_object
 }
@@ -250,7 +242,7 @@ fn order_by_field_text_search<'a>(ctx: BuilderContext<'a>, container: ParentCont
         None
     } else {
         let ty = InputType::object(order_by_object_type_text_search(ctx, &container, &scalar_fields));
-        Some(input_field(ctx, ordering::UNDERSCORE_RELEVANCE, ty, None).optional())
+        Some(input_field(ordering::UNDERSCORE_RELEVANCE, ty, None).optional())
     }
 }
 
@@ -272,13 +264,12 @@ fn order_by_object_type_text_search<'a>(
 
         vec![
             input_field(
-                ctx,
                 ordering::FIELDS,
                 vec![fields_enum_type.clone(), InputType::list(fields_enum_type)],
                 None,
             ),
-            input_field(ctx, ordering::SORT, InputType::Enum(sort_order_enum), None),
-            input_field(ctx, ordering::SEARCH, InputType::string(), None),
+            input_field(ordering::SORT, InputType::Enum(sort_order_enum), None),
+            input_field(ordering::SEARCH, InputType::string(), None),
         ]
     });
     input_object

@@ -46,7 +46,7 @@ fn aggregation_field<'a, F, G>(
     is_count: bool,
 ) -> Option<OutputField<'a>>
 where
-    F: Fn(BuilderContext<'a>, ScalarField) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, ScalarField) -> OutputType<'a> + 'static,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
@@ -62,7 +62,7 @@ where
             is_count,
         ));
 
-        Some(field(name, vec![], object_type, None).nullable())
+        Some(field(name.to_owned(), vec![], object_type, None).nullable())
     }
 }
 
@@ -77,7 +77,7 @@ fn map_field_aggregation_object<'a, F, G>(
     is_count: bool,
 ) -> ObjectType<'a>
 where
-    F: Fn(BuilderContext<'a>, ScalarField) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, ScalarField) -> OutputType<'a> + 'static,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!(
@@ -88,12 +88,13 @@ where
 
     ObjectType {
         identifier: ident,
-        fields: Box::new(|| {
+        fields: Box::new(move || {
             // Non-numerical fields are always set as nullable
             // This is because when there's no data, doing aggregation on them will return NULL
             fields
+                .clone()
                 .into_iter()
-                .map(|sf| field(sf.name(), vec![], type_mapper(ctx, sf), None).nullable_if(!is_count))
+                .map(|sf| field(sf.name().to_owned(), vec![], type_mapper(ctx, sf), None).nullable_if(!is_count))
                 .collect()
         }),
         model: None,

@@ -3,7 +3,7 @@ use constants::aggregations::*;
 use std::convert::identity;
 
 /// Builds plain aggregation object type for given model (e.g. AggregateUser).
-pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> ObjectType<'a> {
+pub(crate) fn aggregation_object_type<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> ObjectType<'a> {
     let ident = Identifier::new_prisma(format!("Aggregate{}", capitalize(model.name())));
 
     ObjectType {
@@ -20,7 +20,7 @@ pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &
                 aggregation_field(
                     ctx,
                     UNDERSCORE_COUNT,
-                    model,
+                    &model,
                     model.fields().scalar(),
                     |_, _| OutputType::int(),
                     |mut obj| {
@@ -41,7 +41,7 @@ pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &
                 aggregation_field(
                     ctx,
                     UNDERSCORE_AVG,
-                    model,
+                    &model,
                     numeric_fields.clone(),
                     field_avg_output_type,
                     identity,
@@ -54,7 +54,7 @@ pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &
                 aggregation_field(
                     ctx,
                     UNDERSCORE_SUM,
-                    model,
+                    &model,
                     numeric_fields,
                     field::map_scalar_output_type_for_field,
                     identity,
@@ -67,7 +67,7 @@ pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &
                 aggregation_field(
                     ctx,
                     UNDERSCORE_MIN,
-                    model,
+                    &model,
                     non_list_nor_json_fields.clone(),
                     field::map_scalar_output_type_for_field,
                     identity,
@@ -80,7 +80,7 @@ pub(crate) fn aggregation_object_type<'a>(ctx: &mut BuilderContext<'a>, model: &
                 aggregation_field(
                     ctx,
                     UNDERSCORE_MAX,
-                    model,
+                    &model,
                     non_list_nor_json_fields,
                     field::map_scalar_output_type_for_field,
                     identity,

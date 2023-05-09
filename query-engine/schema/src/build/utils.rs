@@ -41,12 +41,7 @@ where
 }
 
 /// Field convenience wrapper function.
-pub(crate) fn input_field<'a, T, S>(
-    ctx: BuilderContext<'a>,
-    name: T,
-    field_types: S,
-    default_value: Option<DefaultKind>,
-) -> InputField<'a>
+pub(crate) fn input_field<'a, T, S>(name: T, field_types: S, default_value: Option<DefaultKind>) -> InputField<'a>
 where
     T: Into<String>,
     S: IntoIterator<Item = InputType<'a>>,

@@ -2,7 +2,7 @@ use super::*;
 use input_types::fields::arguments;
 
 /// Builds the root `Query` type.
-pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
+pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
     ObjectType {
         identifier: Identifier::new_prisma("Query"),
         fields: Box::new(|| {
@@ -35,7 +35,7 @@ pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
 
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model.
 /// Find one unique semantics.
-fn find_unique_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
+fn find_unique_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
     arguments::where_unique_argument(ctx, model).map(|arg| {
         let field_name = format!("findUnique{}", model.name());
 
@@ -54,7 +54,7 @@ fn find_unique_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Optio
 
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model
 /// that will throw a NotFoundError if the item is not found
-fn find_unique_or_throw_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
+fn find_unique_or_throw_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
     arguments::where_unique_argument(ctx, model).map(|arg| {
         let field_name = format!("findUnique{}OrThrow", model.name());
 
@@ -72,7 +72,7 @@ fn find_unique_or_throw_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef)
 }
 
 /// Builds a find first item field for given model.
-fn find_first_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
+fn find_first_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
     let field_name = format!("findFirst{}", model.name());
 
@@ -90,9 +90,9 @@ fn find_first_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Output
 
 /// Builds a find first item field for given model that throws a NotFoundError in case the item does
 /// not exist
-fn find_first_or_throw_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
-    let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
+fn find_first_or_throw_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let field_name = format!("findFirst{}OrThrow", model.name());
+    let args = arguments::relation_to_many_selection_arguments(ctx, model.clone(), true);
 
     field(
         field_name,
@@ -107,9 +107,9 @@ fn find_first_or_throw_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) 
 }
 
 /// Builds a "multiple" query arity items field (e.g. "users", "posts", ...) for given model.
-fn all_items_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
-    let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
+fn all_items_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let field_name = format!("findMany{}", model.name());
+    let args = arguments::relation_to_many_selection_arguments(ctx, model.clone(), true);
     let object_type = objects::model::model_object_type(ctx, model.clone());
 
     field(
@@ -124,20 +124,20 @@ fn all_items_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputF
 }
 
 /// Builds an "aggregate" query field (e.g. "aggregateUser") for given model.
-fn plain_aggregation_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
+fn plain_aggregation_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     field(
         format!("aggregate{}", model.name()),
-        arguments::relation_to_many_selection_arguments(ctx, model, false),
-        OutputType::object(aggregation::plain::aggregation_object_type(ctx, &model)),
+        arguments::relation_to_many_selection_arguments(ctx, model.clone(), false),
+        OutputType::object(aggregation::plain::aggregation_object_type(ctx, model.clone())),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::Aggregate,
         }),
     )
 }
 
 /// Builds a "group by" aggregation query field (e.g. "groupByUser") for given model.
-fn group_by_aggregation_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
+fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
     field(
         format!("groupBy{}", model.name()),
         arguments::group_by_arguments(ctx, model),
@@ -151,14 +151,14 @@ fn group_by_aggregation_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a Model
     )
 }
 
-fn mongo_aggregate_raw_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
+fn mongo_aggregate_raw_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
     let field_name = format!("aggregate{}Raw", model.name());
 
     field(
         field_name,
         vec![
-            input_field(ctx, "pipeline", InputType::list(InputType::json()), None).optional(),
-            input_field(ctx, "options", InputType::json(), None).optional(),
+            input_field("pipeline", InputType::list(InputType::json()), None).optional(),
+            input_field("options", InputType::json(), None).optional(),
         ],
         OutputType::json(),
         Some(QueryInfo {
@@ -168,14 +168,14 @@ fn mongo_aggregate_raw_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelR
     )
 }
 
-fn mongo_find_raw_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
+fn mongo_find_raw_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
     let field_name = format!("find{}Raw", model.name());
 
     field(
         field_name,
         vec![
-            input_field(ctx, "filter", InputType::json(), None).optional(),
-            input_field(ctx, "options", InputType::json(), None).optional(),
+            input_field("filter", InputType::json(), None).optional(),
+            input_field("options", InputType::json(), None).optional(),
         ],
         OutputType::json(),
         Some(QueryInfo {
