@@ -3,7 +3,6 @@
 pub mod constants;
 
 mod build;
-mod db;
 mod enum_type;
 mod identifier_type;
 mod input_types;
@@ -19,12 +18,7 @@ pub use self::{
     query_schema::{ConnectorContext, Identifier, QueryInfo, QuerySchema, QueryTag, ScalarType},
 };
 
-use self::{
-    db::{EnumTypeId, InputObjectTypeId, OutputObjectTypeId, QuerySchemaDatabase},
-    identifier_type::IdentifierType,
-    input_types::InputObjectTypeConstraints,
-    utils::*,
-};
+use self::{identifier_type::IdentifierType, input_types::InputObjectTypeConstraints, utils::*};
 use std::sync::Arc;
 
 pub type QuerySchemaRef = Arc<QuerySchema>;

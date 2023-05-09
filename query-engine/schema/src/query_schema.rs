@@ -1,4 +1,4 @@
-use crate::{db::QuerySchemaDatabase, EnumType, IdentifierType, ObjectType, OutputField, OutputObjectTypeId};
+use crate::{EnumType, IdentifierType, ObjectType, OutputField};
 use prisma_models::{InternalDataModelRef, ModelRef};
 use psl::{
     datamodel_connector::{ConnectorCapabilities, ConnectorCapability, RelationMode},
@@ -13,20 +13,11 @@ use std::{collections::HashMap, fmt};
 /// types.
 #[derive(Debug)]
 pub struct QuerySchema {
-    /// Root query object (read queries).
-    pub query: OutputObjectTypeId,
-
-    /// Root mutation object (write queries).
-    pub mutation: OutputObjectTypeId,
-
     /// Internal abstraction over the datamodel AST.
     pub internal_data_model: InternalDataModelRef,
 
     /// Information about the connector this schema was build for.
     pub context: ConnectorContext,
-
-    /// The primary source of truth for schema data.
-    pub db: QuerySchemaDatabase,
 
     // Indexes query fields by their own query info for easier access.
     query_map: HashMap<QueryInfo, usize>,
@@ -67,8 +58,7 @@ impl QuerySchema {
     pub(crate) fn new(
         query: OutputObjectTypeId,
         mutation: OutputObjectTypeId,
-        db: QuerySchemaDatabase,
-        internal_data_model: InternalDataModelRef,
+        internal_dara_model: InternalDataModelRef,
         capabilities: ConnectorCapabilities,
     ) -> Self {
         let features = internal_data_model.schema.configuration.preview_features();
@@ -89,11 +79,8 @@ impl QuerySchema {
         }
 
         QuerySchema {
-            query,
-            mutation,
             query_map,
             mutation_map,
-            db,
             internal_data_model,
             context: ConnectorContext::new(capabilities, features, relation_mode),
         }

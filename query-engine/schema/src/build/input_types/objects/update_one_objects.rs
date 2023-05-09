@@ -2,11 +2,11 @@ use super::{arguments, fields::data_input_mapper::*, *};
 use constants::args;
 use psl::datamodel_connector::ConnectorCapability;
 
-pub(crate) fn update_one_input_types(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn update_one_input_types<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> Vec<InputType> {
+) -> Vec<InputType<'a>> {
     let checked_input = InputType::object(checked_update_one_input_type(ctx, model, parent_field));
     let unchecked_input = InputType::object(unchecked_update_one_input_type(ctx, model, parent_field));
 
@@ -19,19 +19,17 @@ pub(crate) fn update_one_input_types(
 }
 
 /// Builds "<x>UpdateInput" input object type.
-fn checked_update_one_input_type(
-    ctx: &mut BuilderContext<'_>,
+fn checked_update_one_input_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CheckedUpdateOneInput(
         model.clone(),
         parent_field.map(|pf| pf.related_field()),
     ));
 
-    return_cached_input!(ctx, &ident);
-
-    let input_object = init_input_object_type(ident.clone());
+    let input_object = init_input_object_type(ident);
     let id = ctx.cache_input_type(ident, input_object);
 
     let filtered_fields = filter_checked_update_fields(ctx, model, parent_field);
@@ -42,17 +40,15 @@ fn checked_update_one_input_type(
 }
 
 /// Builds "<x>UncheckedUpdateInput" input object type.
-fn unchecked_update_one_input_type(
-    ctx: &mut BuilderContext<'_>,
+fn unchecked_update_one_input_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UncheckedUpdateOneInput(
         model.clone(),
         parent_field.map(|pf| pf.related_field()),
     ));
-
-    return_cached_input!(ctx, &ident);
 
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);
@@ -168,16 +164,14 @@ pub(super) fn filter_unchecked_update_fields(
 
 /// Builds "<x>UpdateWithWhereUniqueNestedInput" / "<x>UpdateWithWhereUniqueWithout<y>Input" input object types.
 /// Simple combination object of "where" and "data".
-pub(crate) fn update_one_where_combination_object(
-    ctx: &mut BuilderContext<'_>,
-    update_types: Vec<InputType>,
+pub(crate) fn update_one_where_combination_object<'a>(
+    ctx: &mut BuilderContext<'a>,
+    update_types: Vec<InputType<'a>>,
     parent_field: &RelationFieldRef,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UpdateOneWhereCombinationInput(
         parent_field.related_field(),
     ));
-
-    return_cached_input!(ctx, &ident);
 
     let related_model = parent_field.related_model();
     let where_input_object = filter_objects::where_unique_object_type(ctx, &related_model);
@@ -196,18 +190,16 @@ pub(crate) fn update_one_where_combination_object(
 
 /// Builds "<x>UpdateWithWhereUniqueWithout<y>Input" input object types.
 /// Simple combination object of "where" and "data" for to-one relations.
-pub(crate) fn update_to_one_rel_where_combination_object(
-    ctx: &mut BuilderContext<'_>,
-    update_types: impl IntoIterator<Item = InputType>,
+pub(crate) fn update_to_one_rel_where_combination_object<'a>(
+    ctx: &mut BuilderContext<'a>,
+    update_types: impl IntoIterator<Item = InputType<'a>>,
     parent_field: &RelationFieldRef,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UpdateToOneRelWhereCombinationInput(
         parent_field.related_field(),
     ));
 
-    return_cached_input!(ctx, &ident);
-
-    let mut input_object = init_input_object_type(ident.clone());
+    let mut input_object = init_input_object_type(ident);
     input_object.set_tag(ObjectTag::NestedToOneUpdateEnvelope);
     let id = ctx.cache_input_type(ident, input_object);
 

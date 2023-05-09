@@ -2,7 +2,7 @@ use super::*;
 use input_types::fields::arguments;
 use prisma_models::{CompositeFieldRef, ScalarFieldRef};
 
-pub(crate) fn map_output_field(ctx: &mut BuilderContext<'_>, model_field: &ModelField) -> OutputField {
+pub(crate) fn map_output_field<'a>(ctx: &mut BuilderContext<'a>, model_field: &ModelField) -> OutputField<'a> {
     field(
         model_field.name(),
         arguments::many_records_output_field_arguments(ctx, model_field),
@@ -20,11 +20,18 @@ pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_fiel
     }
 }
 
-pub(crate) fn map_scalar_output_type_for_field<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarFieldRef) -> OutputType<'a> {
+pub(crate) fn map_scalar_output_type_for_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    field: &ScalarFieldRef,
+) -> OutputType<'a> {
     map_scalar_output_type(ctx, &field.type_identifier(), field.is_list())
 }
 
-pub(crate) fn map_scalar_output_type<'a>(ctx: &mut BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> OutputType<'a> {
+pub(crate) fn map_scalar_output_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    typ: &TypeIdentifier,
+    list: bool,
+) -> OutputType<'a> {
     let output_type = match typ {
         TypeIdentifier::String => OutputType::string(),
         TypeIdentifier::Float => OutputType::float(),
@@ -49,7 +56,7 @@ pub(crate) fn map_scalar_output_type<'a>(ctx: &mut BuilderContext<'a>, typ: &Typ
 }
 
 pub(crate) fn map_relation_output_type<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> OutputType<'a> {
-    let related_model_obj = OutputType::object(objects::model::map_type(ctx, &rf.related_model()));
+    let related_model_obj = OutputType::object(objects::model::model_object_type(ctx, &rf.related_model()));
 
     if rf.is_list() {
         OutputType::list(related_model_obj)
@@ -59,7 +66,7 @@ pub(crate) fn map_relation_output_type<'a>(ctx: &mut BuilderContext<'a>, rf: &Re
 }
 
 fn map_composite_field_output_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> OutputType<'a> {
-    let obj = objects::composite::map_type(ctx, &cf.typ());
+    let obj = objects::composite::composite_object_type(ctx, &cf.typ());
     let typ = OutputType::Object(obj);
 
     if cf.is_list() {
@@ -78,9 +85,9 @@ pub(crate) fn aggregation_relation_field<'a, F, G>(
     fields: Vec<RelationFieldRef>,
     type_mapper: F,
     object_mapper: G,
-) -> Option<OutputField>
+) -> Option<OutputField<'a>>
 where
-    F: Fn(&mut BuilderContext<'_>, &RelationFieldRef) -> OutputType,
+    F: Fn(&mut BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
@@ -107,23 +114,27 @@ fn map_field_aggration_relation<'a, F, G>(
     object_mapper: G,
 ) -> ObjectType<'a>
 where
-    F: Fn(&mut BuilderContext<'_>, &RelationFieldRef) -> OutputType,
+    F: Fn(&mut BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!("{}CountOutputType", capitalize(model.name())));
 
-    let fields: Vec<OutputField> = fields
-        .iter()
-        .map(|rf| {
-            let mut args = vec![];
+    object_mapper(ObjectType {
+        identifier: ident,
+        model: None,
+        fields: Box::new(|| {
+            fields
+                .iter()
+                .map(|rf| {
+                    let mut args = vec![];
 
-            if ctx.has_feature(PreviewFeature::FilteredRelationCount) {
-                args.push(arguments::where_argument(ctx, &rf.related_model()))
-            }
+                    if ctx.has_feature(PreviewFeature::FilteredRelationCount) {
+                        args.push(arguments::where_argument(ctx, &rf.related_model()))
+                    }
 
-            field(rf.name(), args, type_mapper(ctx, rf), None)
-        })
-        .collect();
-
-    object_mapper(object_type(ident.clone(), fields, None))
+                    field(rf.name(), args, type_mapper(ctx, rf), None)
+                })
+                .collect()
+        }),
+    })
 }

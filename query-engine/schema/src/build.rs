@@ -22,8 +22,6 @@
 //! Without caching, processing D (in fact, visiting any type after the intial computation) would also
 //! trigger a complete recomputation of A, B, C.
 
-#[macro_use]
-mod cache;
 mod enum_types;
 mod input_types;
 mod mutations;
@@ -33,8 +31,7 @@ mod utils;
 pub use self::utils::{compound_id_field_name, compound_index_field_name};
 
 use self::{enum_types::*, utils::*};
-use crate::{db::*, *};
-use cache::TypeRefCache;
+use crate::*;
 use prisma_models::{ast, Field as ModelField, InternalDataModel, ModelRef, RelationFieldRef, TypeIdentifier};
 use psl::{
     datamodel_connector::{Connector, ConnectorCapability},
@@ -44,14 +41,8 @@ use psl::{
 pub(crate) struct BuilderContext<'a> {
     internal_data_model: &'a InternalDataModel,
     enable_raw_queries: bool,
-    db: QuerySchemaDatabase,
-    input_types: TypeRefCache<InputObjectTypeId>,
-    output_types: TypeRefCache<OutputObjectTypeId>,
-    enum_types: TypeRefCache<EnumTypeId>,
     connector: &'static dyn Connector,
     preview_features: PreviewFeatures,
-    nested_create_inputs_queue: NestedInputsQueue,
-    nested_update_inputs_queue: NestedInputsQueue,
 }
 
 impl<'a> BuilderContext<'a> {
@@ -60,25 +51,11 @@ impl<'a> BuilderContext<'a> {
         enable_raw_queries: bool,
         preview_features: PreviewFeatures,
     ) -> Self {
-        let connector = internal_data_model.schema.connector;
-        let models_count = internal_data_model.schema.db.models_count();
-        let input_types_estimate = models_count * 3;
-        let output_types_estimate = models_count;
-        let enum_types_estimate = 0; // not all connectors have enums
-        let mut db = QuerySchemaDatabase::default();
-        db.input_field_types
-            .reserve(internal_data_model.schema.db.models_count() * 5);
         Self {
             internal_data_model,
             enable_raw_queries,
-            input_types: TypeRefCache::with_capacity(input_types_estimate),
-            output_types: TypeRefCache::with_capacity(output_types_estimate),
-            enum_types: TypeRefCache::with_capacity(enum_types_estimate),
-            db,
-            connector,
+            connector: internal_data_model.schema.connector,
             preview_features,
-            nested_create_inputs_queue: Vec::new(),
-            nested_update_inputs_queue: Vec::new(),
         }
     }
 
@@ -88,35 +65,6 @@ impl<'a> BuilderContext<'a> {
 
     fn has_capability(&self, capability: ConnectorCapability) -> bool {
         self.connector.has_capability(capability)
-    }
-
-    /// Get an input (object) type.
-    fn get_input_type(&mut self, ident: &Identifier) -> Option<InputObjectTypeId> {
-        self.input_types.get(ident)
-    }
-
-    /// Get an output (object) type.
-    pub(crate) fn get_output_type(&mut self, ident: &Identifier) -> Option<OutputObjectTypeId> {
-        self.output_types.get(ident)
-    }
-
-    /// Get an enum type.
-    pub(crate) fn get_enum_type(&mut self, ident: &Identifier) -> Option<EnumTypeId> {
-        self.enum_types.get(ident)
-    }
-
-    /// Caches an input (object) type.
-    pub(crate) fn cache_input_type(&mut self, ident: Identifier, typ: InputObjectType) -> InputObjectTypeId {
-        let id = self.db.push_input_object_type(typ);
-        self.input_types.insert(ident, id);
-        id
-    }
-
-    /// Caches an enum type.
-    pub(crate) fn cache_enum_type(&mut self, ident: Identifier, e: EnumType) -> EnumTypeId {
-        let id = self.db.push_enum_type(e);
-        self.enum_types.insert(ident, id);
-        id
     }
 
     pub fn can_full_text_search(&self) -> bool {
@@ -144,8 +92,6 @@ pub fn build_with_features(
     let internal_data_model = prisma_models::convert(schema);
     let mut ctx = BuilderContext::new(&internal_data_model, enable_raw_queries, preview_features);
 
-    output_types::objects::initialize_caches(&mut ctx);
-
     let query_type = output_types::query_type::build(&mut ctx);
     let mutation_type = output_types::mutation_type::build(&mut ctx);
 
@@ -154,7 +100,5 @@ pub fn build_with_features(
 
     let capabilities = ctx.connector.capabilities().to_owned();
 
-    QuerySchema::new(query_type, mutation_type, ctx.db, internal_data_model, capabilities)
+    QuerySchema::new(query_type, mutation_type, internal_data_model, capabilities)
 }
-
-type NestedInputsQueue = Vec<(InputObjectTypeId, RelationFieldRef)>;

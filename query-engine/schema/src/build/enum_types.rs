@@ -1,41 +1,30 @@
 use super::*;
-use crate::{EnumType, EnumTypeId};
+use crate::EnumType;
 use constants::{filters, itx, json_null, ordering};
 use prisma_models::prelude::ParentContainer;
 
-pub(crate) fn sort_order_enum(ctx: &mut BuilderContext<'_>) -> EnumTypeId {
+pub(crate) fn sort_order_enum(ctx: &mut BuilderContext<'_>) -> EnumType {
     let ident = Identifier::new_prisma(ordering::SORT_ORDER);
-    return_cached_enum!(ctx, &ident);
 
-    let typ = EnumType::string(ident.clone(), vec![ordering::ASC.to_owned(), ordering::DESC.to_owned()]);
-
-    ctx.cache_enum_type(ident, typ)
+    EnumType::string(ident.clone(), vec![ordering::ASC.to_owned(), ordering::DESC.to_owned()])
 }
 
-pub(crate) fn nulls_order_enum(ctx: &mut BuilderContext<'_>) -> EnumTypeId {
-    let ident = Identifier::new_prisma(ordering::NULLS_ORDER);
-    return_cached_enum!(ctx, &ident);
-
-    let typ = EnumType::string(
-        ident.clone(),
+pub(crate) fn nulls_order_enum(ctx: &mut BuilderContext<'_>) -> EnumType {
+    EnumType::string(
+        Identifier::new_prisma(ordering::NULLS_ORDER),
         vec![ordering::FIRST.to_owned(), ordering::LAST.to_owned()],
-    );
-
-    ctx.cache_enum_type(ident, typ)
+    )
 }
 
-pub(crate) fn map_schema_enum_type(ctx: &mut BuilderContext<'_>, enum_id: ast::EnumId) -> EnumTypeId {
+pub(crate) fn map_schema_enum_type(ctx: &mut BuilderContext<'_>, enum_id: ast::EnumId) -> EnumType {
     let ident = Identifier::new_model(IdentifierType::Enum(ctx.internal_data_model.clone().zip(enum_id)));
-    return_cached_enum!(ctx, &ident);
 
     let schema_enum = ctx.internal_data_model.clone().zip(enum_id);
-    let typ = EnumType::database(ident.clone(), schema_enum);
-    ctx.cache_enum_type(ident, typ)
+    EnumType::database(ident, schema_enum)
 }
 
-pub(crate) fn model_field_enum(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> EnumTypeId {
+pub(crate) fn model_field_enum(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> EnumType {
     let ident = Identifier::new_prisma(IdentifierType::ScalarFieldEnum(model.clone()));
-    return_cached_enum!(ctx, &ident);
 
     let values = model
         .fields()
@@ -44,77 +33,59 @@ pub(crate) fn model_field_enum(ctx: &mut BuilderContext<'_>, model: &ModelRef) -
         .map(|field| (field.name().to_owned(), field))
         .collect();
 
-    let typ = EnumType::field_ref(ident.clone(), values);
-    ctx.cache_enum_type(ident, typ)
+    EnumType::field_ref(ident.clone(), values)
 }
 
-pub(crate) fn json_null_filter_enum(ctx: &mut BuilderContext<'_>) -> EnumTypeId {
+pub(crate) fn json_null_filter_enum(ctx: &mut BuilderContext<'_>) -> EnumType {
     let ident = Identifier::new_prisma(json_null::FILTER_ENUM_NAME);
-    return_cached_enum!(ctx, &ident);
 
-    let typ = EnumType::string(
+    EnumType::string(
         ident.clone(),
         vec![
             json_null::DB_NULL.to_owned(),
             json_null::JSON_NULL.to_owned(),
             json_null::ANY_NULL.to_owned(),
         ],
-    );
-
-    ctx.cache_enum_type(ident, typ)
+    )
 }
 
-pub(crate) fn json_null_input_enum(ctx: &mut BuilderContext<'_>, nullable: bool) -> EnumTypeId {
+pub(crate) fn json_null_input_enum(ctx: &mut BuilderContext<'_>, nullable: bool) -> EnumType {
     let ident = if nullable {
         Identifier::new_prisma(json_null::NULLABLE_INPUT_ENUM_NAME)
     } else {
         Identifier::new_prisma(json_null::INPUT_ENUM_NAME)
     };
 
-    return_cached_enum!(ctx, &ident);
-
-    let typ = if nullable {
+    if nullable {
         EnumType::string(
             ident.clone(),
             vec![json_null::DB_NULL.to_owned(), json_null::JSON_NULL.to_owned()],
         )
     } else {
         EnumType::string(ident.clone(), vec![json_null::JSON_NULL.to_owned()])
-    };
-
-    ctx.cache_enum_type(ident, typ)
+    }
 }
 
 pub(crate) fn order_by_relevance_enum(
     ctx: &mut BuilderContext<'_>,
     container: &ParentContainer,
     values: Vec<String>,
-) -> EnumTypeId {
+) -> EnumType {
     let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceFieldEnum(container.clone()));
-    return_cached_enum!(ctx, &ident);
 
-    let typ = EnumType::string(ident.clone(), values);
-
-    ctx.cache_enum_type(ident, typ)
+    EnumType::string(ident.clone(), values)
 }
 
-pub(crate) fn query_mode_enum(ctx: &mut BuilderContext<'_>) -> EnumTypeId {
+pub(crate) fn query_mode_enum(ctx: &mut BuilderContext<'_>) -> EnumType {
     let ident = Identifier::new_prisma("QueryMode");
-    return_cached_enum!(ctx, &ident);
-
-    let typ = EnumType::string(
-        ident.clone(),
+    EnumType::string(
+        ident,
         vec![filters::DEFAULT.to_owned(), filters::INSENSITIVE.to_owned()],
-    );
-
-    ctx.cache_enum_type(ident, typ)
+    )
 }
 
-pub(crate) fn itx_isolation_levels(ctx: &mut BuilderContext<'_>) -> Option<EnumTypeId> {
+pub(crate) fn itx_isolation_levels(ctx: &mut BuilderContext<'_>) -> Option<EnumType> {
     let ident = Identifier::new_prisma(IdentifierType::TransactionIsolationLevel);
-    if let e @ Some(_) = ctx.get_enum_type(&ident) {
-        return e;
-    }
 
     let mut values = vec![];
 
@@ -142,6 +113,5 @@ pub(crate) fn itx_isolation_levels(ctx: &mut BuilderContext<'_>) -> Option<EnumT
         return None;
     }
 
-    let typ = EnumType::string(ident.clone(), values);
-    Some(ctx.cache_enum_type(ident, typ))
+    Some(EnumType::string(ident.clone(), values))
 }

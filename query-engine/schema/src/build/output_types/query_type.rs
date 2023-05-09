@@ -33,7 +33,7 @@ pub(crate) fn build(ctx: &mut BuilderContext<'_>) -> OutputObjectTypeId {
 
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model.
 /// Find one unique semantics.
-fn find_unique_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<OutputField> {
+fn find_unique_field<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<OutputField<'a>> {
     arguments::where_unique_argument(ctx, model).map(|arg| {
         let field_name = format!("findUnique{}", model.name());
 

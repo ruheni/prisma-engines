@@ -44,7 +44,6 @@ pub(crate) fn order_by_object_type(
         container.clone(),
         options.type_suffix().to_owned(),
     ));
-    return_cached_input!(ctx, &ident);
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_at_most_one_field();
@@ -75,7 +74,10 @@ pub(crate) fn order_by_object_type(
     id
 }
 
-fn compute_scalar_aggregation_fields(ctx: &mut BuilderContext<'_>, container: &ParentContainer) -> Vec<InputField> {
+fn compute_scalar_aggregation_fields<'a>(
+    ctx: &mut BuilderContext<'a>,
+    container: &ParentContainer,
+) -> Vec<InputField<'a>> {
     let non_list_nor_json_fields = aggregation::collect_non_list_nor_json_fields(container);
     let numeric_fields = aggregation::collect_numeric_fields(container);
     let scalar_fields = container
@@ -113,11 +115,11 @@ fn compute_scalar_aggregation_fields(ctx: &mut BuilderContext<'_>, container: &P
     fields.into_iter().flatten().collect()
 }
 
-fn orderby_field_mapper(
+fn orderby_field_mapper<'a>(
     field: &ModelField,
-    ctx: &mut BuilderContext<'_>,
+    ctx: &mut BuilderContext<'a>,
     options: &OrderByOptions,
-) -> Option<InputField> {
+) -> Option<InputField<'a>> {
     match field {
         // To-many relation field.
         ModelField::Relation(rf) if rf.is_list() && options.include_relations => {
@@ -176,7 +178,6 @@ fn orderby_field_mapper(
 
 fn sort_nulls_object_type(ctx: &mut BuilderContext<'_>) -> InputObjectTypeId {
     let ident = Identifier::new_prisma("SortOrderInput");
-    return_cached_input!(ctx, &ident);
 
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);
@@ -192,13 +193,13 @@ fn sort_nulls_object_type(ctx: &mut BuilderContext<'_>) -> InputObjectTypeId {
     id
 }
 
-fn order_by_field_aggregate(
+fn order_by_field_aggregate<'a>(
     name: &str,
     suffix: &str,
-    ctx: &mut BuilderContext<'_>,
+    ctx: &mut BuilderContext<'a>,
     container: &ParentContainer,
     scalar_fields: Vec<ScalarFieldRef>,
-) -> Option<InputField> {
+) -> Option<InputField<'a>> {
     if scalar_fields.is_empty() {
         None
     } else {
@@ -217,8 +218,6 @@ fn order_by_object_type_aggregate(
         container.clone(),
         suffix.to_string(),
     ));
-
-    return_cached_input!(ctx, &ident);
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
@@ -239,8 +238,6 @@ fn order_by_to_many_aggregate_object_type(
     container: &ParentContainer,
 ) -> InputObjectTypeId {
     let ident = Identifier::new_prisma(IdentifierType::OrderByToManyAggregateInput(container.clone()));
-    return_cached_input!(ctx, &ident);
-
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
     let id = ctx.cache_input_type(ident, input_object);
@@ -251,7 +248,7 @@ fn order_by_to_many_aggregate_object_type(
     id
 }
 
-fn order_by_field_text_search(ctx: &mut BuilderContext<'_>, container: &ParentContainer) -> Option<InputField> {
+fn order_by_field_text_search<'a>(ctx: &mut BuilderContext<'a>, container: &ParentContainer) -> Option<InputField<'a>> {
     let scalar_fields: Vec<_> = container
         .fields()
         .into_iter()
@@ -276,9 +273,7 @@ fn order_by_object_type_text_search(
 ) -> InputObjectTypeId {
     let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceInput(container.clone()));
 
-    return_cached_input!(ctx, &ident);
-
-    let input_object = init_input_object_type(ident.clone());
+    let input_object = init_input_object_type(ident);
     let id = ctx.cache_input_type(ident, input_object);
 
     let fields_enum_type = InputType::enum_type(order_by_relevance_enum(

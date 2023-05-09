@@ -1,23 +1,22 @@
 use super::*;
 use fmt::Debug;
-use once_cell::sync::OnceCell;
 use prisma_models::{ast::ModelId, ModelRef};
 use std::fmt;
 
 #[derive(Debug)]
 pub enum OutputType<'a> {
-    Enum(EnumTypeId),
+    Enum(EnumType),
     List(Box<OutputType<'a>>),
     Object(ObjectType<'a>),
     Scalar(ScalarType),
 }
 
-impl OutputType {
-    pub(crate) fn list(containing: OutputType) -> Self {
+impl<'a> OutputType<'a> {
+    pub(crate) fn list(containing: OutputType<'a>) -> Self {
         OutputType::List(Box::new(containing))
     }
 
-    pub(crate) fn object(containing: OutputObjectTypeId) -> Self {
+    pub(crate) fn object(containing: ObjectType<'a>) -> Self {
         OutputType::Object(containing)
     }
 
@@ -45,7 +44,7 @@ impl OutputType {
         OutputType::Scalar(ScalarType::Boolean)
     }
 
-    pub(crate) fn enum_type(containing: EnumTypeId) -> Self {
+    pub(crate) fn enum_type(containing: EnumType) -> Self {
         OutputType::Enum(containing)
     }
 
@@ -113,7 +112,7 @@ impl OutputType {
 
 pub struct ObjectType<'a> {
     pub(crate) identifier: Identifier,
-    pub(crate) fields: Box<dyn Fn() -> Box<dyn ExactSizeIterator<Item = OutputField<'a>> + 'a> + 'a>,
+    pub(crate) fields: Box<dyn Fn() -> Vec<OutputField<'a>> + 'a>,
 
     // Object types can directly map to models.
     pub(crate) model: Option<ModelId>,
@@ -139,22 +138,21 @@ impl<'a> ObjectType<'a> {
 
     pub fn get_fields(&self) -> impl ExactSizeIterator<Item = OutputField<'a>> {
         let fields = &self.fields;
-        fields()
+        fields().into_iter()
     }
 
-    pub fn find_field<'a>(&'a self, name: &str) -> Option<OutputField<'a>> {
+    pub fn find_field(&self, name: &str) -> Option<OutputField<'a>> {
         self.get_fields().find(|f| f.name == name)
     }
 }
 
-#[derive(Debug)]
 pub struct OutputField<'a> {
     pub(crate) name: String,
     pub(super) field_type: OutputType<'a>,
 
     /// Arguments are input fields, but positioned in context of an output field
     /// instead of being attached to an input object.
-    pub arguments: Vec<InputField>,
+    pub arguments: Vec<InputField<'a>>,
 
     /// Indicates the presence of the field on the higher output objects.
     /// States whether or not the field can be null.
@@ -163,7 +161,7 @@ pub struct OutputField<'a> {
     pub(super) query_info: Option<QueryInfo>,
 }
 
-impl OutputField {
+impl<'a> OutputField<'a> {
     pub fn name(&self) -> &String {
         &self.name
     }
@@ -185,7 +183,7 @@ impl OutputField {
         self.query_info.as_ref().and_then(|info| info.model.as_ref())
     }
 
-    pub fn field_type(&self) -> &OutputType {
+    pub fn field_type(&self) -> &OutputType<'a> {
         &self.field_type
     }
 
@@ -205,7 +203,7 @@ impl OutputField {
     // Is relation determines whether the given output field maps to a a relation, i.e.
     // is an object and that object is backed by a model, meaning that it is not an scalar list
     pub fn maps_to_relation(&self, query_schema: &QuerySchema) -> bool {
-        let o = self.field_type.as_object_type(&query_schema.db);
+        let o = self.field_type.as_object_type();
         o.is_some() && o.unwrap().model.is_some()
     }
 }

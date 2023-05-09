@@ -6,11 +6,11 @@ use crate::*;
 use fields::*;
 use prisma_models::ScalarFieldRef;
 
-fn map_scalar_input_type_for_field(ctx: &mut BuilderContext<'_>, field: &ScalarFieldRef) -> InputType {
+fn map_scalar_input_type_for_field<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarFieldRef) -> InputType<'a> {
     map_scalar_input_type(ctx, &field.type_identifier(), field.is_list())
 }
 
-fn map_scalar_input_type(ctx: &mut BuilderContext<'_>, typ: &TypeIdentifier, list: bool) -> InputType {
+fn map_scalar_input_type<'a>(ctx: &mut BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> InputType<'a> {
     let typ = match typ {
         TypeIdentifier::String => InputType::string(),
         TypeIdentifier::Int => InputType::int(),
@@ -36,14 +36,14 @@ fn map_scalar_input_type(ctx: &mut BuilderContext<'_>, typ: &TypeIdentifier, lis
 
 /// Convenience function to return [object_type, list_object_type]
 /// (shorthand + full type) if the field is a list.
-pub(crate) fn list_union_object_type(input: InputObjectTypeId, as_list: bool) -> Vec<InputType> {
+pub(crate) fn list_union_object_type<'a>(input: InputObjectType<'a>, as_list: bool) -> Vec<InputType<'a>> {
     let input_type = InputType::object(input);
     list_union_type(input_type, as_list)
 }
 
 /// Convenience function to return [input_type, list_input_type]
 /// (shorthand + full type) if the field is a list.
-pub(crate) fn list_union_type(input_type: InputType, as_list: bool) -> Vec<InputType> {
+pub(crate) fn list_union_type<'a>(input_type: InputType<'a>, as_list: bool) -> Vec<InputType<'a>> {
     if as_list {
         vec![input_type.clone(), InputType::list(input_type)]
     } else {

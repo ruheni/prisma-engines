@@ -2,13 +2,12 @@ use super::*;
 use constants::filters;
 use prisma_models::{prelude::ParentContainer, CompositeFieldRef};
 
-pub(crate) fn scalar_filter_object_type(
-    ctx: &mut BuilderContext<'_>,
-    model: &ModelRef,
+pub(crate) fn scalar_filter_object_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    model: &'a ModelRef,
     include_aggregates: bool,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ScalarFilterInput(model.clone(), include_aggregates));
-    return_cached_input!(ctx, &ident);
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_tag(ObjectTag::WhereInputType(ParentContainer::Model(model.clone())));
@@ -50,7 +49,6 @@ where
 {
     let container: ParentContainer = container.into();
     let ident = Identifier::new_prisma(IdentifierType::WhereInput(container.clone()));
-    return_cached_input!(ctx, &ident);
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_tag(ObjectTag::WhereInputType(container.clone()));
@@ -88,7 +86,6 @@ where
 
 pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> InputObjectTypeId {
     let ident = Identifier::new_prisma(IdentifierType::WhereUniqueInput(model.clone()));
-    return_cached_input!(ctx, &ident);
 
     // Split unique & ID fields vs all the other fields
     let (unique_fields, rest_fields): (Vec<_>, Vec<_>) = model
@@ -147,7 +144,7 @@ pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &Mod
 
     let id = ctx.cache_input_type(ident, input_object);
 
-    let mut fields: Vec<InputField> = unique_fields
+    let mut fields: Vec<InputField<'_>> = unique_fields
         .into_iter()
         .map(|f| {
             let sf = f.as_scalar().unwrap();
@@ -159,7 +156,7 @@ pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &Mod
         .collect();
 
     // @@unique compound fields.
-    let compound_unique_fields: Vec<InputField> = compound_uniques
+    let compound_unique_fields: Vec<InputField<'_>> = compound_uniques
         .into_iter()
         .map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional())
         .collect();
@@ -218,8 +215,6 @@ fn compound_field_unique_object_type(
         compound_object_name(alias, &from_fields)
     ));
 
-    return_cached_input!(ctx, &ident);
-
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);
 
@@ -239,11 +234,13 @@ fn compound_field_unique_object_type(
 
 /// Object used for full composite equality, e.g. `{ field: "value", field2: 123 } == { field: "value" }`.
 /// If the composite is a list, only lists are allowed for comparison, no shorthands are used.
-pub(crate) fn composite_equality_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectTypeId {
+pub(crate) fn composite_equality_object<'a>(
+    ctx: &mut BuilderContext<'a>,
+    cf: &CompositeFieldRef,
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(format!("{}ObjectEqualityInput", cf.typ().name()));
-    return_cached_input!(ctx, &ident);
 
-    let input_object = init_input_object_type(ident.clone());
+    let input_object = init_input_object_type(ident);
     let id = ctx.cache_input_type(ident, input_object);
     let mut fields = vec![];
 

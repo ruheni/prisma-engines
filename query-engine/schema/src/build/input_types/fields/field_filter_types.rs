@@ -4,11 +4,11 @@ use prisma_models::{CompositeFieldRef, DefaultKind, NativeTypeInstance, PrismaVa
 use psl::datamodel_connector::ConnectorCapability;
 
 /// Builds filter types for the given model field.
-pub(crate) fn get_field_filter_types(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn get_field_filter_types<'a>(
+    ctx: &mut BuilderContext<'a>,
     field: &ModelField,
     include_aggregates: bool,
-) -> Vec<InputType> {
+) -> Vec<InputType<'a>> {
     match field {
         ModelField::Relation(rf) if rf.is_list() => {
             vec![InputType::object(to_many_relation_filter_object(ctx, rf))]
@@ -57,17 +57,15 @@ pub(crate) fn get_field_filter_types(
 }
 
 /// Builds shorthand relation equality (`is`) filter for to-one: `where: { relation_field: { ... } }` (no `is` in between).
-fn to_one_relation_filter_shorthand_types(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputType {
+fn to_one_relation_filter_shorthand_types<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> InputType<'a> {
     let related_model = rf.related_model();
     let related_input_type = filter_objects::where_object_type(ctx, &related_model);
 
     InputType::object(related_input_type)
 }
 
-fn to_many_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectTypeId {
+fn to_many_relation_filter_object<'a>(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToManyRelationFilterInput(rf.related_model()));
-
-    return_cached_input!(ctx, &ident);
 
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::RelationEnvelope);
@@ -85,7 +83,7 @@ fn to_many_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFie
     id
 }
 
-fn to_one_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectTypeId {
+fn to_one_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectType<'a> {
     // TODO: It is important to traverse the related model before going into the cache.
     // TODO: The ToOneRelationFilterInput is currently broken as it does not take nullability into account.
     // TODO: This means that the first relation field to be traversed will set the nullability for all other relation field that points to the same related model.
@@ -121,7 +119,7 @@ fn to_one_composite_filter_shorthand_types(ctx: &mut BuilderContext<'_>, cf: &Co
     InputType::object(equality_object_type)
 }
 
-fn to_one_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectTypeId {
+fn to_one_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToOneCompositeFilterInput(cf.typ(), cf.arity()));
     return_cached_input!(ctx, &ident);
 
@@ -153,7 +151,7 @@ fn to_one_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFi
     id
 }
 
-fn to_many_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectTypeId {
+fn to_many_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToManyCompositeFilterInput(cf.typ()));
     return_cached_input!(ctx, &ident);
 
@@ -190,7 +188,7 @@ fn to_many_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeF
     id
 }
 
-fn scalar_list_filter_type(ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputObjectTypeId {
+fn scalar_list_filter_type(ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ScalarListFilterInput(
         ctx.internal_data_model.clone().zip(sf.type_identifier()),
         sf.is_required(),
@@ -237,7 +235,7 @@ fn full_scalar_filter_type(
     nullable: bool,
     nested: bool,
     include_aggregates: bool,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let native_type_name = native_type.map(|nt| nt.name());
     let scalar_type_name = typ.type_name(&ctx.internal_data_model.schema).into_owned();
     let type_name = ctx.connector.scalar_filter_name(scalar_type_name, native_type_name);

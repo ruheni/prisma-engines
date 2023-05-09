@@ -3,32 +3,16 @@
 use super::*;
 use prisma_models::CompositeType;
 
-/// Compute initial composites cache. No fields are computed because we first
-/// need all composites to be present, then we can compute fields in a second pass.
-pub(crate) fn initialize_cache(ctx: &mut BuilderContext<'_>) {
-    for composite in ctx.internal_data_model.composite_types() {
-        let ident = Identifier::new_model(composite.name().to_owned());
-        ctx.cache_output_type(ident.clone(), ObjectType::new(ident, None));
+pub(crate) fn composite_object_type<'a>(ctx: &mut BuilderContext<'a>, composite: &CompositeType) -> ObjectType<'a> {
+    ObjectType {
+        identifier: Identifier::new_model(composite.name().to_owned()),
+        model: None,
+        fields: Box::new(|| compute_composite_object_type_fields(ctx, &composite)),
     }
-}
-
-// Compute fields on all cached composite object types.
-pub(crate) fn initialize_fields(ctx: &mut BuilderContext<'_>) {
-    for composite in ctx.internal_data_model.composite_types() {
-        let fields = compute_composite_object_type_fields(ctx, &composite);
-        let obj = map_type(ctx, &composite);
-        ctx.db[obj].set_fields(fields);
-    }
-}
-
-pub(crate) fn map_type(ctx: &mut BuilderContext<'_>, ct: &CompositeType) -> OutputObjectTypeId {
-    let ident = Identifier::new_model(ct.name().to_owned());
-    ctx.get_output_type(&ident)
-        .expect("Invariant violation: Initialized output object type for each composite.")
 }
 
 /// Computes composite output type fields.
 /// Requires an initialized cache.
-fn compute_composite_object_type_fields(ctx: &mut BuilderContext<'_>, composite: &CompositeType) -> Vec<OutputField> {
+fn compute_composite_object_type_fields<'a>(ctx: &mut BuilderContext<'a>, composite: &CompositeType) -> Vec<OutputField<'a>> {
     composite.fields().map(|f| field::map_output_field(ctx, &f)).collect()
 }

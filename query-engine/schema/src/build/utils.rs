@@ -1,28 +1,18 @@
 use super::*;
-use prisma_models::{ast, walkers, DefaultKind};
-
-/// Object type convenience wrapper function.
-pub fn object_type<'a>(
-    identifier: Identifier,
-    fields: Vec<OutputField>,
-    model: Option<ast::ModelId>,
-) -> ObjectType<'a> {
-    ObjectType {
-        identifier,
-        fields: Box::new(move || Box::new(fields.into_iter())),
-        model,
-    }
-}
+use prisma_models::{walkers, DefaultKind};
 
 /// Input object type convenience wrapper function.
-pub fn input_object_type(ident: Identifier, fields: Vec<InputField>) -> InputObjectType {
+pub(crate) fn input_object_type<'a>(
+    ident: Identifier,
+    fields: Box<dyn Fn() -> Vec<InputField<'a>> + 'a>,
+) -> InputObjectType<'a> {
     let mut object_type = init_input_object_type(ident);
-    object_type.set_fields(fields);
+    object_type.fields = fields;
     object_type
 }
 
 /// Input object type initializer for cases where only the name is known, and fields are computed later.
-pub fn init_input_object_type(ident: Identifier) -> InputObjectType {
+pub(crate) fn init_input_object_type(ident: Identifier) -> InputObjectType<'a> {
     InputObjectType {
         identifier: ident,
         constraints: InputObjectTypeConstraints::default(),
@@ -32,12 +22,12 @@ pub fn init_input_object_type(ident: Identifier) -> InputObjectType {
 }
 
 /// Field convenience wrapper function.
-pub fn field<'a, T>(
+pub(crate) fn field<'a, T>(
     name: T,
-    arguments: Vec<InputField>,
+    arguments: Vec<InputField<'a>>,
     field_type: OutputType<'a>,
     query_info: Option<QueryInfo>,
-) -> OutputField
+) -> OutputField<'a>
 where
     T: Into<String>,
 {

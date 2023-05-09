@@ -2,11 +2,11 @@ use super::fields::data_input_mapper::*;
 use super::*;
 use constants::args;
 
-pub(crate) fn update_many_input_types(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn update_many_input_types<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> Vec<InputType> {
+) -> Vec<InputType<'a>> {
     let checked_input = InputType::object(checked_update_many_input_type(ctx, model));
     let unchecked_input = InputType::object(unchecked_update_many_input_type(ctx, model, parent_field));
 
@@ -21,8 +21,6 @@ pub(crate) fn update_many_input_types(
 /// Builds "<x>UpdateManyMutationInput" input object type.
 pub(crate) fn checked_update_many_input_type(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> InputObjectTypeId {
     let ident = Identifier::new_prisma(IdentifierType::CheckedUpdateManyInput(model.clone()));
-
-    return_cached_input!(ctx, &ident);
 
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);
@@ -57,8 +55,6 @@ pub(crate) fn unchecked_update_many_input_type(
 
     let ident = Identifier::new_prisma(name);
 
-    return_cached_input!(ctx, &ident);
-
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);
 
@@ -82,8 +78,6 @@ pub(crate) fn update_many_where_combination_object(
     let ident = Identifier::new_prisma(IdentifierType::UpdateManyWhereCombinationInput(
         parent_field.related_field(),
     ));
-
-    return_cached_input!(ctx, &ident);
 
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);

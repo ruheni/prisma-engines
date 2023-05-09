@@ -4,11 +4,11 @@ use mutations::{create_many, create_one};
 use objects::*;
 use psl::datamodel_connector::ConnectorCapability;
 
-pub(crate) fn filter_input_field(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn filter_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
     field: &ModelField,
     include_aggregates: bool,
-) -> InputField {
+) -> InputField<'a> {
     let types = field_filter_types::get_field_filter_types(ctx, field, include_aggregates);
     let nullable = !field.is_required()
         && !field.is_list()
@@ -19,16 +19,16 @@ pub(crate) fn filter_input_field(
 
     input_field(ctx, field.name().to_owned(), types, None)
         .optional()
-        .nullable_if(nullable, &mut ctx.db)
+        .nullable_if(nullable)
 }
 
-pub(crate) fn nested_create_one_input_field(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn nested_create_one_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
     parent_field: &RelationFieldRef,
-) -> InputField {
+) -> InputField<'a> {
     let create_types = create_one::create_one_input_types(ctx, &parent_field.related_model(), Some(parent_field));
 
-    let types: Vec<InputType> = create_types
+    let types: Vec<InputType<'_>> = create_types
         .into_iter()
         .flat_map(|typ| list_union_type(typ, parent_field.is_list()))
         .collect();

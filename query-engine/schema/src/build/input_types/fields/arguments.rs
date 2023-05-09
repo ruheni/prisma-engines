@@ -6,17 +6,17 @@ use objects::*;
 use prisma_models::{prelude::ParentContainer, CompositeFieldRef};
 
 /// Builds "where" argument.
-pub(crate) fn where_argument(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> InputField {
+pub(crate) fn where_argument<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> InputField<'a> {
     let where_object = filter_objects::where_object_type(ctx, model);
 
     input_field(ctx, args::WHERE, InputType::object(where_object), None).optional()
 }
 
 /// Builds "where" argument which input type is the where unique type of the input builder.
-pub(crate) fn where_unique_argument(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<InputField> {
+pub(crate) fn where_unique_argument<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<InputField<'a>> {
     let input_object_type = filter_objects::where_unique_object_type(ctx, model);
 
-    if ctx.db[input_object_type].is_empty() {
+    if input_object_type.is_empty() {
         None
     } else {
         Some(input_field(
@@ -29,12 +29,12 @@ pub(crate) fn where_unique_argument(ctx: &mut BuilderContext<'_>, model: &ModelR
 }
 
 /// Builds "where" (unique) argument intended for the delete field.
-pub(crate) fn delete_one_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<Vec<InputField>> {
+pub(crate) fn delete_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
     where_unique_argument(ctx, model).map(|arg| vec![arg])
 }
 
 /// Builds "where" (unique) and "data" arguments intended for the update field.
-pub(crate) fn update_one_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<Vec<InputField>> {
+pub(crate) fn update_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
     where_unique_argument(ctx, model).map(|unique_arg| {
         let update_types = update_one_objects::update_one_input_types(ctx, model, None);
 
@@ -43,13 +43,12 @@ pub(crate) fn update_one_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRe
 }
 
 /// Builds "where" (unique), "create", and "update" arguments intended for the upsert field.
-pub(crate) fn upsert_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<Vec<InputField>> {
+pub(crate) fn upsert_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
     where_unique_argument(ctx, model).and_then(|where_unique_arg| {
         let update_types = update_one_objects::update_one_input_types(ctx, model, None);
         let create_types = create_one::create_one_input_types(ctx, model, None);
 
-        if update_types.iter().all(|typ| typ.is_empty(&ctx.db)) || create_types.iter().all(|typ| typ.is_empty(&ctx.db))
-        {
+        if update_types.iter().all(|typ| typ.is_empty()) || create_types.iter().all(|typ| typ.is_empty()) {
             None
         } else {
             Some(vec![

@@ -17,7 +17,7 @@ impl CreateDataInputFieldMapper {
 }
 
 impl DataInputFieldMapper for CreateDataInputFieldMapper {
-    fn map_scalar(&self, ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputField {
+    fn map_scalar<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &ScalarFieldRef) -> InputField<'a> {
         let typ = map_scalar_input_type_for_field(ctx, sf);
         let supports_advanced_json = ctx.has_capability(ConnectorCapability::AdvancedJsonNullability);
 
@@ -31,22 +31,20 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
 
             _ => input_field(ctx, sf.name(), typ, sf.default_value())
                 .optional_if(!sf.is_required() || sf.default_value().is_some() || sf.is_updated_at())
-                .nullable_if(!sf.is_required(), &mut ctx.db),
+                .nullable_if(!sf.is_required()),
         }
     }
 
-    fn map_scalar_list(&self, ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputField {
+    fn map_scalar_list<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &ScalarFieldRef) -> InputField<'a> {
         let typ = map_scalar_input_type_for_field(ctx, sf);
         let ident = Identifier::new_prisma(IdentifierType::CreateOneScalarList(sf.clone()));
 
-        let input_object = match ctx.get_input_type(&ident) {
-            Some(cached) => cached,
-            None => {
-                let object_fields = vec![input_field(ctx, operations::SET, typ.clone(), None)];
-                let mut input_object = input_object_type(ident.clone(), object_fields);
-                input_object.require_exactly_one_field();
-                ctx.cache_input_type(ident, input_object)
-            }
+        let input_object = {
+            let mut input_object = input_object_type(
+                ident,
+                Box::new(|| vec![input_field(ctx, operations::SET, typ.clone(), None)]),
+            );
+            input_object.require_exactly_one_field();
         };
 
         let input_type = InputType::object(input_object);
@@ -55,7 +53,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         input_field(ctx, sf.name(), vec![input_type, typ], sf.default_value()).optional()
     }
 
-    fn map_relation(&self, ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputField {
+    fn map_relation<'a>(&self, ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> InputField<'a> {
         let ident = Identifier::new_prisma(IdentifierType::RelationCreateInput(
             rf.clone(),
             rf.related_field(),
@@ -95,7 +93,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         }
     }
 
-    fn map_composite(&self, ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputField {
+    fn map_composite<'a>(&self, ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> InputField<'a> {
         // Shorthand object (just the plain create object for the composite).
         let shorthand_type = InputType::Object(composite_create_object_type(ctx, cf));
 
@@ -115,7 +113,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         }
 
         input_field(ctx, cf.name().to_owned(), input_types, None)
-            .nullable_if(!cf.is_required() && !cf.is_list(), &mut ctx.db)
+            .nullable_if(!cf.is_required() && !cf.is_list())
             .optional_if(!cf.is_required())
     }
 }
@@ -128,11 +126,10 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
 ///   ... more ops ...
 /// }
 /// ```
-fn composite_create_envelope_object_type(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectTypeId {
+fn composite_create_envelope_object_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateEnvelopeInput(cf.typ(), cf.arity()));
-    return_cached_input!(ctx, &ident);
 
-    let mut input_object = init_input_object_type(ident.clone());
+    let mut input_object = init_input_object_type(ident);
     input_object.require_exactly_one_field();
     input_object.set_tag(ObjectTag::CompositeEnvelope);
     let id = ctx.cache_input_type(ident, input_object);
@@ -152,13 +149,11 @@ fn composite_create_envelope_object_type(ctx: &mut BuilderContext<'_>, cf: &Comp
     id
 }
 
-pub(crate) fn composite_create_object_type(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectTypeId {
+pub(crate) fn composite_create_object_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
     // It's called "Create" input because it's used across multiple create-type operations, not only "set".
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateInput(cf.typ()));
 
-    return_cached_input!(ctx, &ident);
-
-    let input_object = init_input_object_type(ident.clone());
+    let input_object = init_input_object_type(ident);
     let id = ctx.cache_input_type(ident, input_object);
 
     let mapper = CreateDataInputFieldMapper::new_checked();

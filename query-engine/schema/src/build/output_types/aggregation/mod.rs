@@ -4,7 +4,7 @@ use prisma_models::{prelude::ParentContainer, ScalarField};
 pub(crate) mod group_by;
 pub(crate) mod plain;
 
-fn field_avg_output_type<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarField) -> OutputType {
+fn field_avg_output_type<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarField) -> OutputType<'a> {
     match field.type_identifier() {
         TypeIdentifier::Int | TypeIdentifier::BigInt | TypeIdentifier::Float => OutputType::float(),
         TypeIdentifier::Decimal => OutputType::decimal(),
@@ -36,18 +36,18 @@ pub(crate) fn collect_numeric_fields(container: &ParentContainer) -> Vec<ScalarF
 
 /// Returns an aggregation field with given name if the passed fields contains any fields.
 /// Field types inside the object type of the field are determined by the passed mapper fn.
-fn aggregation_field<F, G>(
-    ctx: &mut BuilderContext<'_>,
+fn aggregation_field<'a, F, G>(
+    ctx: &mut BuilderContext<'a>,
     name: &str,
     model: &ModelRef,
     fields: Vec<ScalarField>,
     type_mapper: F,
     object_mapper: G,
     is_count: bool,
-) -> Option<OutputField>
+) -> Option<OutputField<'a>>
 where
-    F: Fn(&mut BuilderContext<'_>, &ScalarField) -> OutputType,
-    G: Fn(ObjectType) -> ObjectType,
+    F: Fn(&mut BuilderContext<'a>, &ScalarField) -> OutputType<'a>,
+    G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
         None
@@ -67,34 +67,35 @@ where
 }
 
 /// Maps the object type for aggregations that operate on a field level.
-fn map_field_aggregation_object<F, G>(
-    ctx: &mut BuilderContext<'_>,
+fn map_field_aggregation_object<'a, F, G>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     suffix: &str,
     fields: &[ScalarField],
     type_mapper: F,
     object_mapper: G,
     is_count: bool,
-) -> OutputObjectTypeId
+) -> ObjectType<'a>
 where
-    F: Fn(&mut BuilderContext<'_>, &ScalarField) -> OutputType,
-    G: Fn(ObjectType) -> ObjectType,
+    F: Fn(&mut BuilderContext<'a>, &ScalarField) -> OutputType<'a>,
+    G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!(
         "{}{}AggregateOutputType",
         capitalize(model.name()),
         capitalize(suffix)
     ));
-    return_cached_output!(ctx, &ident);
 
-    // Non-numerical fields are always set as nullable
-    // This is because when there's no data, doing aggregation on them will return NULL
-    let fields: Vec<OutputField> = fields
-        .iter()
-        .map(|sf| field(sf.name(), vec![], type_mapper(ctx, sf), None).nullable_if(!is_count))
-        .collect();
-
-    let object = object_mapper(object_type(ident.clone(), fields, None));
-
-    ctx.cache_output_type(ident, object)
+    ObjectType {
+        identifier: ident,
+        fields: Box::new(|| {
+            // Non-numerical fields are always set as nullable
+            // This is because when there's no data, doing aggregation on them will return NULL
+            fields
+                .iter()
+                .map(|sf| field(sf.name(), vec![], type_mapper(ctx, sf), None).nullable_if(!is_count))
+                .collect()
+        }),
+        model: None,
+    }
 }

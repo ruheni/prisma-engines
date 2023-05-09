@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    Identifier, IdentifierType, InputField, InputObjectTypeId, InputType, OutputField, OutputType, QueryInfo, QueryTag,
+    Identifier, IdentifierType, InputField, InputObjectType, InputType, OutputField, OutputType, QueryInfo, QueryTag,
 };
 use constants::*;
 use input_types::fields::data_input_mapper::*;
@@ -8,14 +8,14 @@ use output_types::objects;
 use prisma_models::{ModelRef, RelationFieldRef};
 
 /// Builds a create mutation field (e.g. createUser) for given model.
-pub(crate) fn create_one(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+pub(crate) fn create_one<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
     let args = create_one_arguments(ctx, model).unwrap_or_default();
     let field_name = format!("createOne{}", model.name());
 
     field(
         field_name,
         args,
-        OutputType::object(objects::model::map_type(ctx, model)),
+        OutputType::object(objects::model::model_object_type(ctx, model)),
         Some(QueryInfo {
             model: Some(model.clone()),
             tag: QueryTag::CreateOne,
@@ -25,10 +25,10 @@ pub(crate) fn create_one(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Outp
 
 /// Builds "data" argument intended for the create field.
 /// The data argument is not present if no data can be created.
-pub(crate) fn create_one_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<Vec<InputField>> {
+pub(crate) fn create_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
     let create_types = create_one_input_types(ctx, model, None);
-    let any_empty = create_types.iter().any(|typ| typ.is_empty(&ctx.db));
-    let all_empty = create_types.iter().all(|typ| typ.is_empty(&ctx.db));
+    let any_empty = create_types.iter().any(|typ| typ.is_empty());
+    let all_empty = create_types.iter().all(|typ| typ.is_empty());
 
     if all_empty {
         None
@@ -39,11 +39,11 @@ pub(crate) fn create_one_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRe
     }
 }
 
-pub(crate) fn create_one_input_types(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn create_one_input_types<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> Vec<InputType> {
+) -> Vec<InputType<'a>> {
     let checked_input = InputType::object(checked_create_input_type(ctx, model, parent_field));
     let unchecked_input = InputType::object(unchecked_create_input_type(ctx, model, parent_field));
 
@@ -59,11 +59,11 @@ pub(crate) fn create_one_input_types(
 /// Also valid for nested inputs. A nested input is constructed if the `parent_field` is provided.
 /// "Checked" input refers to disallowing writing relation scalars directly, as it can lead to unintended
 /// data integrity violations if used incorrectly.
-fn checked_create_input_type(
-    ctx: &mut BuilderContext<'_>,
+fn checked_create_input_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     // We allow creation from both sides of the relation - which would lead to an endless loop of input types
     // if we would allow to create the parent from a child create that is already a nested create.
     // To solve it, we remove the parent relation from the input ("Without<Parent>").
@@ -71,8 +71,6 @@ fn checked_create_input_type(
         model.clone(),
         parent_field.map(|pf| pf.related_field()),
     ));
-
-    return_cached_input!(ctx, &ident);
 
     let input_object = init_input_object_type(ident.clone());
     let id = ctx.cache_input_type(ident, input_object);
@@ -89,11 +87,11 @@ fn checked_create_input_type(
 /// Also valid for nested inputs. A nested input is constructed if the `parent_field` is provided.
 /// "Unchecked" input refers to allowing to write _all_ scalars on a model directly, which can
 /// lead to unintended data integrity violations if used incorrectly.
-fn unchecked_create_input_type(
-    ctx: &mut BuilderContext<'_>,
+fn unchecked_create_input_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     // We allow creation from both sides of the relation - which would lead to an endless loop of input types
     // if we would allow to create the parent from a child create that is already a nested create.
     // To solve it, we remove the parent relation from the input ("Without<Parent>").
@@ -102,9 +100,7 @@ fn unchecked_create_input_type(
         parent_field.map(|pf| pf.related_field()),
     ));
 
-    return_cached_input!(ctx, &ident);
-
-    let input_object = init_input_object_type(ident.clone());
+    let input_object = init_input_object_type(ident);
     let id = ctx.cache_input_type(ident, input_object);
 
     let filtered_fields = filter_unchecked_create_fields(model, parent_field);

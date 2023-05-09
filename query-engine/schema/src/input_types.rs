@@ -1,25 +1,29 @@
 use super::*;
-use crate::db::QuerySchemaDatabase;
 use fmt::Debug;
 use prisma_models::{prelude::ParentContainer, DefaultKind};
 use std::{boxed::Box, fmt};
 
-#[derive(PartialEq)]
-pub struct InputObjectType {
+pub struct InputObjectType<'a> {
     pub identifier: Identifier,
     pub constraints: InputObjectTypeConstraints,
-    pub(crate) fields: Vec<InputField>,
-    pub(crate) tag: Option<ObjectTag>,
+    pub(crate) fields: Box<dyn Fn() -> Vec<InputField<'a>> + 'a>,
+    pub(crate) tag: Option<ObjectTag<'a>>,
+}
+
+impl PartialEq for InputObjectType<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
 }
 
 /// Object tags help differentiating objects during parsing / raw input data processing,
 /// especially if complex object unions are present.
-#[derive(Debug, PartialEq, Clone)]
-pub enum ObjectTag {
+#[derive(Debug)]
+pub enum ObjectTag<'a> {
     CompositeEnvelope,
     RelationEnvelope,
     // Holds the type against which a field can be compared
-    FieldRefType(InputType),
+    FieldRefType(Box<InputType<'a>>),
     WhereInputType(ParentContainer),
     NestedToOneUpdateEnvelope,
 }
@@ -37,7 +41,7 @@ pub struct InputObjectTypeConstraints {
     pub fields: Option<Vec<String>>,
 }
 
-impl Debug for InputObjectType {
+impl Debug for InputObjectType<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InputObjectType")
             .field("identifier", &self.identifier)
@@ -47,16 +51,17 @@ impl Debug for InputObjectType {
     }
 }
 
-impl InputObjectType {
-    pub fn get_fields(&self) -> impl ExactSizeIterator<Item = &InputField> {
-        self.fields.iter()
+impl<'a> InputObjectType<'a> {
+    pub fn get_fields(&self) -> impl ExactSizeIterator<Item = InputField<'a>> {
+        let f = &self.fields;
+        f().into_iter()
     }
 
-    pub fn tag(&self) -> Option<&ObjectTag> {
+    pub fn tag(&self) -> Option<&ObjectTag<'a>> {
         self.tag.as_ref()
     }
 
-    pub(crate) fn set_fields(&mut self, fields: Vec<InputField>) {
+    pub(crate) fn set_fields(&mut self, fields: Box<dyn Fn() -> Vec<InputField<'a>> + 'a>) {
         self.fields = fields;
     }
 
@@ -65,7 +70,7 @@ impl InputObjectType {
         self.get_fields().len() == 0
     }
 
-    pub fn find_field<T>(&self, name: T) -> Option<&InputField>
+    pub fn find_field<T>(&self, name: T) -> Option<InputField<'a>>
     where
         T: Into<String>,
     {
@@ -104,36 +109,32 @@ impl InputObjectType {
         self.constraints.fields = Some(fields);
     }
 
-    pub(crate) fn set_tag(&mut self, tag: ObjectTag) {
+    pub(crate) fn set_tag(&mut self, tag: ObjectTag<'a>) {
         self.tag = Some(tag);
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct InputField {
+pub struct InputField<'a> {
     pub name: String,
     pub default_value: Option<DefaultKind>,
 
-    /// Possible field types, represented as a union of input types, but only one can be provided at any time.
-    /// Slice expressed as (start, len).
-    field_types: Option<(usize, usize)>,
-
+    field_types: Box<dyn Fn() -> Vec<InputType<'a>> + 'a>,
     is_required: bool,
 }
 
-impl InputField {
-    pub(crate) fn new(name: String, default_value: Option<DefaultKind>, is_required: bool) -> InputField {
+impl<'a> InputField<'a> {
+    pub(crate) fn new(name: String, default_value: Option<DefaultKind>, is_required: bool) -> InputField<'a> {
         InputField {
             name,
             default_value,
-            field_types: None,
+            field_types: Box::new(|| Vec::new()),
             is_required,
         }
     }
 
-    pub fn field_types<'a>(&self, query_schema: &'a QuerySchema) -> &'a [InputType] {
-        let (start, len) = self.field_types.unwrap_or_default();
-        &query_schema.db.input_field_types[start..(start + len)]
+    pub fn field_types(&self) -> impl ExactSizeIterator<Item = InputType<'a>> {
+        let f = &self.field_types;
+        f().into_iter()
     }
 
     /// Indicates if the presence of the field on the higher input objects
@@ -164,48 +165,43 @@ impl InputField {
     }
 
     /// Sets the field as nullable (accepting null inputs).
-    pub(crate) fn nullable(self, db: &mut QuerySchemaDatabase) -> Self {
-        self.add_type(InputType::null(), db)
+    pub(crate) fn nullable(self) -> Self {
+        self.add_type(InputType::null())
     }
 
     /// Sets the field as nullable if the condition is true.
-    pub(crate) fn nullable_if(self, condition: bool, db: &mut QuerySchemaDatabase) -> Self {
+    pub(crate) fn nullable_if(self, condition: bool) -> Self {
         if condition {
-            self.nullable(db)
+            self.nullable()
         } else {
             self
         }
     }
 
-    pub(crate) fn push_type(&mut self, typ: InputType, db: &mut QuerySchemaDatabase) {
-        match &mut self.field_types {
-            Some((_start, len)) => {
-                *len += 1;
-                db.input_field_types.push(typ);
-            }
-            None => {
-                self.field_types = Some((db.input_field_types.len(), 1));
-                db.input_field_types.push(typ);
-            }
-        }
+    pub(crate) fn push_type(&mut self, typ: InputType<'a>) {
+        self.field_types = Box::new(move || {
+            let f = &self.field_types;
+            let mut types = f();
+            types.push(typ);
+            types
+        });
     }
 
     /// Adds possible input type to this input field's type union.
-    pub(crate) fn add_type(mut self, typ: InputType, db: &mut QuerySchemaDatabase) -> Self {
-        self.push_type(typ, db);
+    pub(crate) fn add_type(mut self, typ: InputType<'a>) -> Self {
+        self.push_type(typ);
         self
     }
 }
 
-#[derive(Clone)]
-pub enum InputType {
+pub enum InputType<'a> {
     Scalar(ScalarType),
-    Enum(EnumTypeId),
-    List(Box<InputType>),
-    Object(InputObjectTypeId),
+    Enum(EnumType),
+    List(Box<InputType<'a>>),
+    Object(InputObjectType<'a>),
 }
 
-impl PartialEq for InputType {
+impl<'a> PartialEq for InputType<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (InputType::Scalar(st), InputType::Scalar(ost)) => st.eq(ost),
@@ -217,7 +213,7 @@ impl PartialEq for InputType {
     }
 }
 
-impl Debug for InputType {
+impl<'a> Debug for InputType<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Object(obj) => write!(f, "Object({obj:?})"),
@@ -228,77 +224,77 @@ impl Debug for InputType {
     }
 }
 
-impl InputType {
-    pub(crate) fn list(containing: InputType) -> InputType {
+impl<'a> InputType<'a> {
+    pub(crate) fn list(containing: InputType<'a>) -> InputType<'a> {
         InputType::List(Box::new(containing))
     }
 
-    pub(crate) fn object(containing: InputObjectTypeId) -> InputType {
+    pub(crate) fn object(containing: InputObjectType<'a>) -> InputType<'a> {
         InputType::Object(containing)
     }
 
-    pub(crate) fn string() -> InputType {
+    pub(crate) fn string() -> InputType<'a> {
         InputType::Scalar(ScalarType::String)
     }
 
-    pub(crate) fn int() -> InputType {
+    pub(crate) fn int() -> InputType<'a> {
         InputType::Scalar(ScalarType::Int)
     }
 
-    pub(crate) fn bigint() -> InputType {
+    pub(crate) fn bigint() -> InputType<'a> {
         InputType::Scalar(ScalarType::BigInt)
     }
 
-    pub(crate) fn float() -> InputType {
+    pub(crate) fn float() -> InputType<'a> {
         InputType::Scalar(ScalarType::Float)
     }
 
-    pub(crate) fn decimal() -> InputType {
+    pub(crate) fn decimal() -> InputType<'a> {
         InputType::Scalar(ScalarType::Decimal)
     }
 
-    pub(crate) fn boolean() -> InputType {
+    pub(crate) fn boolean() -> InputType<'a> {
         InputType::Scalar(ScalarType::Boolean)
     }
 
-    pub(crate) fn date_time() -> InputType {
+    pub(crate) fn date_time() -> InputType<'a> {
         InputType::Scalar(ScalarType::DateTime)
     }
 
-    pub(crate) fn json() -> InputType {
+    pub(crate) fn json() -> InputType<'a> {
         InputType::Scalar(ScalarType::Json)
     }
 
-    pub(crate) fn json_list() -> InputType {
+    pub(crate) fn json_list() -> InputType<'a> {
         InputType::Scalar(ScalarType::JsonList)
     }
 
-    pub(crate) fn uuid() -> InputType {
+    pub(crate) fn uuid() -> InputType<'a> {
         InputType::Scalar(ScalarType::UUID)
     }
 
-    pub(crate) fn xml() -> InputType {
+    pub(crate) fn xml() -> InputType<'a> {
         InputType::Scalar(ScalarType::Xml)
     }
 
-    pub(crate) fn bytes() -> InputType {
+    pub(crate) fn bytes() -> InputType<'a> {
         InputType::Scalar(ScalarType::Bytes)
     }
 
-    pub(crate) fn null() -> InputType {
+    pub(crate) fn null() -> InputType<'a> {
         InputType::Scalar(ScalarType::Null)
     }
 
-    pub(crate) fn enum_type(containing: EnumTypeId) -> InputType {
+    pub(crate) fn enum_type(containing: EnumType) -> InputType<'a> {
         InputType::Enum(containing)
     }
 
-    pub(crate) fn is_empty(&self, query_schema: &QuerySchemaDatabase) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         match self {
             Self::Scalar(_) => false,
             Self::Enum(_) => false,
-            Self::List(inner) => inner.is_empty(query_schema),
-            Self::Object(id) => query_schema[*id].is_empty(),
+            Self::List(inner) => inner.is_empty(),
+            Self::Object(object) => object.is_empty(),
         }
     }
 
@@ -309,15 +305,15 @@ impl InputType {
         )
     }
 
-    pub fn as_object<'a>(&self, query_schema: &'a QuerySchemaDatabase) -> Option<&'a InputObjectType> {
+    pub fn as_object(&self) -> Option<&InputObjectType<'a>> {
         if let Self::Object(v) = self {
-            Some(&query_schema[*v])
+            Some(v)
         } else {
             None
         }
     }
 
-    pub fn as_list(&self) -> Option<&InputType> {
+    pub fn as_list(&self) -> Option<&InputType<'a>> {
         if let Self::List(list) = self {
             Some(list)
         } else {
@@ -326,9 +322,9 @@ impl InputType {
     }
 }
 
-impl IntoIterator for InputType {
-    type Item = InputType;
-    type IntoIter = std::iter::Once<InputType>;
+impl<'a> IntoIterator for InputType<'a> {
+    type Item = InputType<'a>;
+    type IntoIter = std::iter::Once<InputType<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         std::iter::once(self)

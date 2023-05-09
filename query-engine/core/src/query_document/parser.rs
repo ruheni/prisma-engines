@@ -179,7 +179,7 @@ impl QueryDocumentParser {
                             selection_path.clone(),
                             argument_path,
                             value,
-                            input_field_ref.field_types(query_schema),
+                            input_field_ref.field_types(),
                             query_schema,
                         )
                         .map(|value| ParsedArgument {
@@ -192,7 +192,7 @@ impl QueryDocumentParser {
                         selection_path.segments(),
                         argument_path.segments(),
                         &conversions::input_types_to_input_type_descriptions(
-                            input_field_ref.field_types(query_schema),
+                            input_field_ref.field_types(),
                             query_schema,
                         ),
                     ))),
@@ -822,8 +822,8 @@ pub(crate) mod conversions {
         validation::OutputTypeDescription::new(name, fields)
     }
 
-    pub(crate) fn input_types_to_input_type_descriptions(
-        input_types: &[schema::InputType],
+    pub(crate) fn input_types_to_input_type_descriptions<'a>(
+        input_types: impl ExactSizeIterator<Item = schema::InputType<'a>>,
         query_schema: &QuerySchema,
     ) -> Vec<validation::InputTypeDescription> {
         input_types
