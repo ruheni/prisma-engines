@@ -22,11 +22,11 @@ pub(crate) trait DataInputFieldMapper {
             .collect()
     }
 
-    fn map_scalar<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &ScalarFieldRef) -> InputField<'a>;
+    fn map_scalar<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &'a ScalarFieldRef) -> InputField<'a>;
 
-    fn map_scalar_list<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &ScalarFieldRef) -> InputField<'a>;
+    fn map_scalar_list<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &'a ScalarFieldRef) -> InputField<'a>;
 
-    fn map_relation<'a>(&self, ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> InputField<'a>;
+    fn map_relation<'a>(&self, ctx: &mut BuilderContext<'a>, rf: &'a RelationFieldRef) -> InputField<'a>;
 
-    fn map_composite<'a>(&self, ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> InputField<'a>;
+    fn map_composite<'a>(&self, ctx: &mut BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputField<'a>;
 }

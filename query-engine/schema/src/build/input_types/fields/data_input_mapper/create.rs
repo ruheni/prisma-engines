@@ -45,6 +45,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
                 Box::new(|| vec![input_field(ctx, operations::SET, typ.clone(), None)]),
             );
             input_object.require_exactly_one_field();
+            input_object
         };
 
         let input_type = InputType::object(input_object);
@@ -60,20 +61,17 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             self.unchecked,
         ));
 
-        let input_object = match ctx.get_input_type(&ident) {
-            Some(t) => t,
-            None => {
-                let input_object = init_input_object_type(ident.clone());
-                let id = ctx.cache_input_type(ident, input_object);
+        let input_object = {
+            let input_object = init_input_object_type(ident.clone());
+            let id = ctx.cache_input_type(ident, input_object);
 
-                // Enqueue the nested create input for its fields to be
-                // created at a later point, to avoid recursing too deep
-                // (that has caused stack overflows on large schemas in
-                // the past).
-                ctx.nested_create_inputs_queue.push((id, rf.clone()));
+            // Enqueue the nested create input for its fields to be
+            // created at a later point, to avoid recursing too deep
+            // (that has caused stack overflows on large schemas in
+            // the past).
+            ctx.nested_create_inputs_queue.push((id, rf.clone()));
 
-                id
-            }
+            id
         };
 
         // If all backing scalars of a relation have a default, the entire relation is optional on create, even if the relation field itself is optional.
@@ -126,7 +124,10 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
 ///   ... more ops ...
 /// }
 /// ```
-fn composite_create_envelope_object_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
+fn composite_create_envelope_object_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    cf: &CompositeFieldRef,
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateEnvelopeInput(cf.typ(), cf.arity()));
 
     let mut input_object = init_input_object_type(ident);
@@ -149,7 +150,10 @@ fn composite_create_envelope_object_type<'a>(ctx: &mut BuilderContext<'a>, cf: &
     id
 }
 
-pub(crate) fn composite_create_object_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
+pub(crate) fn composite_create_object_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    cf: &CompositeFieldRef,
+) -> InputObjectType<'a> {
     // It's called "Create" input because it's used across multiple create-type operations, not only "set".
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateInput(cf.typ()));
 

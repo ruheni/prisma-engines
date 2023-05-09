@@ -10,15 +10,23 @@ pub struct InputObjectType<'a> {
     pub(crate) tag: Option<ObjectTag<'a>>,
 }
 
-impl PartialEq for InputObjectType<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        todo!()
+impl<'a> Clone for InputObjectType<'a> {
+    fn clone(&self) -> Self {
+        InputObjectType {
+            identifier: self.identifier.clone(),
+            constraints: self.constraints.clone(),
+            tag: self.tag.clone(),
+            fields: Box::new(move || {
+                let f = &self.fields;
+                f()
+            }),
+        }
     }
 }
 
 /// Object tags help differentiating objects during parsing / raw input data processing,
 /// especially if complex object unions are present.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ObjectTag<'a> {
     CompositeEnvelope,
     RelationEnvelope,
@@ -28,7 +36,7 @@ pub enum ObjectTag<'a> {
     NestedToOneUpdateEnvelope,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct InputObjectTypeConstraints {
     /// The maximum number of fields that can be provided.
     pub min_num_fields: Option<usize>,
@@ -194,6 +202,7 @@ impl<'a> InputField<'a> {
     }
 }
 
+#[derive(Clone)]
 pub enum InputType<'a> {
     Scalar(ScalarType),
     Enum(EnumType),
@@ -201,17 +210,17 @@ pub enum InputType<'a> {
     Object(InputObjectType<'a>),
 }
 
-impl<'a> PartialEq for InputType<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (InputType::Scalar(st), InputType::Scalar(ost)) => st.eq(ost),
-            (InputType::Enum(_), InputType::Enum(_)) => true,
-            (InputType::List(lt), InputType::List(olt)) => lt.eq(olt),
-            (InputType::Object(obj), InputType::Object(oobj)) => obj == oobj,
-            _ => false,
-        }
-    }
-}
+// impl<'a> PartialEq for InputType<'a> {
+//     fn eq(&self, other: &Self) -> bool {
+//         match (self, other) {
+//             (InputType::Scalar(st), InputType::Scalar(ost)) => st.eq(ost),
+//             (InputType::Enum(_), InputType::Enum(_)) => true,
+//             (InputType::List(lt), InputType::List(olt)) => lt.eq(olt),
+//             (InputType::Object(obj), InputType::Object(oobj)) => obj == oobj,
+//             _ => false,
+//         }
+//     }
+// }
 
 impl<'a> Debug for InputType<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -12,11 +12,11 @@ pub(crate) fn input_object_type<'a>(
 }
 
 /// Input object type initializer for cases where only the name is known, and fields are computed later.
-pub(crate) fn init_input_object_type(ident: Identifier) -> InputObjectType<'a> {
+pub(crate) fn init_input_object_type<'a>(ident: Identifier) -> InputObjectType<'a> {
     InputObjectType {
         identifier: ident,
         constraints: InputObjectTypeConstraints::default(),
-        fields: Vec::new(),
+        fields: Box::new(|| Vec::new()),
         tag: None,
     }
 }
@@ -41,19 +41,19 @@ where
 }
 
 /// Field convenience wrapper function.
-pub(crate) fn input_field<T, S>(
-    ctx: &mut BuilderContext<'_>,
+pub(crate) fn input_field<'a, T, S>(
+    ctx: &mut BuilderContext<'a>,
     name: T,
     field_types: S,
     default_value: Option<DefaultKind>,
-) -> InputField
+) -> InputField<'a>
 where
     T: Into<String>,
-    S: IntoIterator<Item = InputType>,
+    S: IntoIterator<Item = InputType<'a>>,
 {
     let mut input_field = InputField::new(name.into(), default_value, true);
     for field_type in field_types {
-        input_field.push_type(field_type, &mut ctx.db);
+        input_field.push_type(field_type);
     }
     input_field
 }

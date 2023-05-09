@@ -47,12 +47,7 @@ pub(crate) fn create_one_input_types<'a>(
     let checked_input = InputType::object(checked_create_input_type(ctx, model, parent_field));
     let unchecked_input = InputType::object(unchecked_create_input_type(ctx, model, parent_field));
 
-    // If the inputs are equal, only use one.
-    if checked_input == unchecked_input {
-        vec![checked_input]
-    } else {
-        vec![checked_input, unchecked_input]
-    }
+    vec![checked_input, unchecked_input]
 }
 
 /// Builds the create input type (<x>CreateInput / <x>CreateWithout<y>Input)
@@ -72,15 +67,13 @@ fn checked_create_input_type<'a>(
         parent_field.map(|pf| pf.related_field()),
     ));
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let filtered_fields = filter_checked_create_fields(model, parent_field);
-    let field_mapper = CreateDataInputFieldMapper::new_checked();
-    let input_fields = field_mapper.map_all(ctx, &filtered_fields);
-
-    ctx.db[id].set_fields(input_fields);
-    id
+    let input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let filtered_fields = filter_checked_create_fields(model, parent_field);
+        let field_mapper = CreateDataInputFieldMapper::new_checked();
+        field_mapper.map_all(ctx, &filtered_fields)
+    });
+    input_object
 }
 
 /// Builds the create input type (<x>UncheckedCreateInput / <x>UncheckedCreateWithout<y>Input)
@@ -100,15 +93,13 @@ fn unchecked_create_input_type<'a>(
         parent_field.map(|pf| pf.related_field()),
     ));
 
-    let input_object = init_input_object_type(ident);
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let filtered_fields = filter_unchecked_create_fields(model, parent_field);
-    let field_mapper = CreateDataInputFieldMapper::new_unchecked();
-    let input_fields = field_mapper.map_all(ctx, &filtered_fields);
-
-    ctx.db[id].set_fields(input_fields);
-    id
+    let mut input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let filtered_fields = filter_unchecked_create_fields(model, parent_field);
+        let field_mapper = CreateDataInputFieldMapper::new_unchecked();
+        field_mapper.map_all(ctx, &filtered_fields)
+    });
+    input_object
 }
 
 /// Filters the given model's fields down to the allowed ones for checked create.

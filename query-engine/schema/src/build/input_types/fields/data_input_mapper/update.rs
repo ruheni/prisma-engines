@@ -17,7 +17,7 @@ impl UpdateDataInputFieldMapper {
 }
 
 impl DataInputFieldMapper for UpdateDataInputFieldMapper {
-    fn map_scalar(&self, ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputField {
+    fn map_scalar<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &ScalarFieldRef) -> InputField<'a> {
         let base_update_type = match sf.type_identifier() {
             TypeIdentifier::Float => InputType::object(update_operations_object_type(ctx, "Float", sf, true)),
             TypeIdentifier::Decimal => InputType::object(update_operations_object_type(ctx, "Decimal", sf, true)),
@@ -56,12 +56,12 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
                 let types = vec![map_scalar_input_type_for_field(ctx, sf), base_update_type];
 
                 let input_field = input_field(ctx, sf.name(), types, None);
-                input_field.optional().nullable_if(!sf.is_required(), &mut ctx.db)
+                input_field.optional().nullable_if(!sf.is_required())
             }
         }
     }
 
-    fn map_scalar_list(&self, ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputField {
+    fn map_scalar_list<'a>(&self, ctx: &mut BuilderContext<'a>, sf: &'a ScalarFieldRef) -> InputField<'a> {
         let list_input_type = map_scalar_input_type(ctx, &sf.type_identifier(), sf.is_list());
         let ident = Identifier::new_prisma(IdentifierType::ScalarListUpdateInput(sf.clone()));
 
@@ -90,7 +90,7 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
         input_field(ctx, sf.name(), vec![input_type, list_input_type], None).optional()
     }
 
-    fn map_relation(&self, ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputField {
+    fn map_relation<'a>(&self, ctx: &mut BuilderContext<'a>, rf: &'a RelationFieldRef) -> InputField<'a> {
         let ident = Identifier::new_prisma(IdentifierType::RelationUpdateInput(
             rf.clone(),
             rf.related_field(),
@@ -115,7 +115,7 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
         input_field(ctx, rf.name(), InputType::object(input_object), None).optional()
     }
 
-    fn map_composite(&self, ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputField {
+    fn map_composite<'a>(&self, ctx: &mut BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputField<'a> {
         // Shorthand object (equivalent to the "set" operation).
         let shorthand_type = InputType::Object(create::composite_create_object_type(ctx, cf));
 
@@ -134,12 +134,12 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
     }
 }
 
-fn update_operations_object_type(
-    ctx: &mut BuilderContext<'_>,
+fn update_operations_object_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     prefix: &str,
-    sf: &ScalarFieldRef,
+    sf: &'a ScalarFieldRef,
     with_number_operators: bool,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::FieldUpdateOperationsInput(
         !sf.is_required(),
         prefix.to_owned(),
@@ -153,7 +153,7 @@ fn update_operations_object_type(
     let typ = map_scalar_input_type_for_field(ctx, sf);
     let mut fields = vec![input_field(ctx, operations::SET, typ.clone(), None)
         .optional()
-        .nullable_if(!sf.is_required(), &mut ctx.db)];
+        .nullable_if(!sf.is_required())];
 
     if with_number_operators {
         fields.push(input_field(ctx, operations::INCREMENT, typ.clone(), None).optional());

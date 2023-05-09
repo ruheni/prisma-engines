@@ -10,20 +10,17 @@ pub(crate) fn update_many_input_types<'a>(
     let checked_input = InputType::object(checked_update_many_input_type(ctx, model));
     let unchecked_input = InputType::object(unchecked_update_many_input_type(ctx, model, parent_field));
 
-    // If the inputs are equal, only use one.
-    if checked_input == unchecked_input {
-        vec![checked_input]
-    } else {
-        vec![checked_input, unchecked_input]
-    }
+    vec![checked_input, unchecked_input]
 }
 
 /// Builds "<x>UpdateManyMutationInput" input object type.
-pub(crate) fn checked_update_many_input_type(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> InputObjectTypeId {
+pub(crate) fn checked_update_many_input_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    model: &ModelRef,
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CheckedUpdateManyInput(model.clone()));
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
+    let input_object = init_input_object_type(ident);
 
     let filtered_fields: Vec<_> = update_one_objects::filter_checked_update_fields(ctx, model, None)
         .into_iter()
@@ -33,7 +30,7 @@ pub(crate) fn checked_update_many_input_type(ctx: &mut BuilderContext<'_>, model
     let field_mapper = UpdateDataInputFieldMapper::new_checked();
     let input_fields = field_mapper.map_all(ctx, &filtered_fields);
     ctx.db[id].set_fields(input_fields);
-    id
+    input_object
 }
 
 /// Builds "<x>UncheckedUpdateManyWithout<y>MutationInput" input object type
@@ -41,7 +38,7 @@ pub(crate) fn unchecked_update_many_input_type(
     ctx: &mut BuilderContext<'_>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     // TODO: This leads to conflicting type names.
     // TODO: See https://github.com/prisma/prisma/issues/18534 for further details.
     let name = match parent_field {
@@ -74,7 +71,7 @@ pub(crate) fn unchecked_update_many_input_type(
 pub(crate) fn update_many_where_combination_object(
     ctx: &mut BuilderContext<'_>,
     parent_field: &RelationFieldRef,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UpdateManyWhereCombinationInput(
         parent_field.related_field(),
     ));

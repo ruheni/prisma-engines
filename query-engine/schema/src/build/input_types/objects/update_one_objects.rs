@@ -10,33 +10,27 @@ pub(crate) fn update_one_input_types<'a>(
     let checked_input = InputType::object(checked_update_one_input_type(ctx, model, parent_field));
     let unchecked_input = InputType::object(unchecked_update_one_input_type(ctx, model, parent_field));
 
-    // If the inputs are equal, only use one.
-    if checked_input == unchecked_input {
-        vec![checked_input]
-    } else {
-        vec![checked_input, unchecked_input]
-    }
+    vec![checked_input, unchecked_input]
 }
 
 /// Builds "<x>UpdateInput" input object type.
 fn checked_update_one_input_type<'a>(
     ctx: &mut BuilderContext<'a>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    model: &'a ModelRef,
+    parent_field: Option<&'a RelationFieldRef>,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CheckedUpdateOneInput(
         model.clone(),
         parent_field.map(|pf| pf.related_field()),
     ));
 
-    let input_object = init_input_object_type(ident);
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let filtered_fields = filter_checked_update_fields(ctx, model, parent_field);
-    let field_mapper = UpdateDataInputFieldMapper::new_checked();
-    let input_fields = field_mapper.map_all(ctx, &filtered_fields);
-    ctx.db[id].set_fields(input_fields);
-    id
+    let mut input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let filtered_fields = filter_checked_update_fields(ctx, model, parent_field);
+        let field_mapper = UpdateDataInputFieldMapper::new_checked();
+        field_mapper.map_all(ctx, &filtered_fields)
+    });
+    input_object
 }
 
 /// Builds "<x>UncheckedUpdateInput" input object type.
@@ -50,14 +44,14 @@ fn unchecked_update_one_input_type<'a>(
         parent_field.map(|pf| pf.related_field()),
     ));
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
+    let mut input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let filtered_fields = filter_unchecked_update_fields(ctx, model, parent_field);
+        let field_mapper = UpdateDataInputFieldMapper::new_unchecked();
+        field_mapper.map_all(ctx, &filtered_fields)
+    });
 
-    let filtered_fields = filter_unchecked_update_fields(ctx, model, parent_field);
-    let field_mapper = UpdateDataInputFieldMapper::new_unchecked();
-    let input_fields = field_mapper.map_all(ctx, &filtered_fields);
-    ctx.db[id].set_fields(input_fields);
-    id
+    input_object
 }
 
 /// Filters the given model's fields down to the allowed ones for checked update.
@@ -176,16 +170,14 @@ pub(crate) fn update_one_where_combination_object<'a>(
     let related_model = parent_field.related_model();
     let where_input_object = filter_objects::where_unique_object_type(ctx, &related_model);
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let fields = vec![
-        input_field(ctx, args::WHERE, InputType::object(where_input_object), None),
-        input_field(ctx, args::DATA, update_types, None),
-    ];
-
-    ctx.db[id].set_fields(fields);
-    id
+    let mut input_object = init_input_object_type(ident.clone());
+    input_object.fields = Box::new(|| {
+        vec![
+            input_field(ctx, args::WHERE, InputType::object(where_input_object), None),
+            input_field(ctx, args::DATA, update_types, None),
+        ]
+    });
+    input_object
 }
 
 /// Builds "<x>UpdateWithWhereUniqueWithout<y>Input" input object types.
@@ -193,7 +185,7 @@ pub(crate) fn update_one_where_combination_object<'a>(
 pub(crate) fn update_to_one_rel_where_combination_object<'a>(
     ctx: &mut BuilderContext<'a>,
     update_types: impl IntoIterator<Item = InputType<'a>>,
-    parent_field: &RelationFieldRef,
+    parent_field: &'a RelationFieldRef,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UpdateToOneRelWhereCombinationInput(
         parent_field.related_field(),
@@ -201,14 +193,12 @@ pub(crate) fn update_to_one_rel_where_combination_object<'a>(
 
     let mut input_object = init_input_object_type(ident);
     input_object.set_tag(ObjectTag::NestedToOneUpdateEnvelope);
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let related_model = parent_field.related_model();
-    let fields = vec![
-        arguments::where_argument(ctx, &related_model),
-        input_field(ctx, args::DATA, update_types, None),
-    ];
-
-    ctx.db[id].set_fields(fields);
-    id
+    input_object.fields = Box::new(|| {
+        let related_model = parent_field.related_model();
+        vec![
+            arguments::where_argument(ctx, &related_model),
+            input_field(ctx, args::DATA, update_types, None),
+        ]
+    });
+    input_object
 }
