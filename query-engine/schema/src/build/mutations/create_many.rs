@@ -7,9 +7,9 @@ use prisma_models::{ModelRef, RelationFieldRef};
 use psl::datamodel_connector::ConnectorCapability;
 
 /// Builds a create many mutation field (e.g. createManyUsers) for given model.
-pub(crate) fn create_many<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<OutputField<'a>> {
-    let arguments = create_many_arguments(ctx, model);
+pub(crate) fn create_many<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
     let field_name = format!("createMany{}", model.name());
+    let arguments = create_many_arguments(ctx, model.clone());
 
     if ctx.has_capability(ConnectorCapability::CreateMany) {
         Some(field(
@@ -17,7 +17,7 @@ pub(crate) fn create_many<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) ->
             arguments,
             OutputType::object(objects::affected_records_object_type(ctx)),
             Some(QueryInfo {
-                model: Some(model.clone()),
+                model: Some(model),
                 tag: QueryTag::CreateMany,
             }),
         ))
@@ -27,7 +27,7 @@ pub(crate) fn create_many<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) ->
 }
 
 /// Builds "skip_duplicates" and "data" arguments intended for the create many field.
-pub(crate) fn create_many_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Vec<InputField<'a>> {
+pub(crate) fn create_many_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Vec<InputField<'a>> {
     let create_many_type = InputType::object(create_many_object_type(ctx, model, None));
     let data_arg = input_field(ctx, args::DATA, list_union_type(create_many_type, true), None);
 
@@ -45,9 +45,9 @@ pub(crate) fn create_many_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &Mo
 /// where we don't allow the parent scalar to be written (ie. when the relation
 /// is inlined on the child).
 pub(crate) fn create_many_object_type<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &'a ModelRef,
-    parent_field: Option<&'a RelationFieldRef>,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CreateManyInput(
         model.clone(),
@@ -55,19 +55,19 @@ pub(crate) fn create_many_object_type<'a>(
     ));
 
     let input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(|| {
+    input_object.fields = Box::new(move || {
         let filtered_fields = filter_create_many_fields(ctx, model, parent_field);
         let field_mapper = CreateDataInputFieldMapper::new_checked();
-        field_mapper.map_all(ctx, &filtered_fields)
+        field_mapper.map_all(ctx, filtered_fields)
     });
     input_object
 }
 
 /// Filters the given model's fields down to the allowed ones for checked create.
 fn filter_create_many_fields(
-    ctx: &BuilderContext<'_>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    ctx: BuilderContext<'_>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> Vec<ModelField> {
     let linking_fields = if let Some(parent_field) = parent_field {
         let child_field = parent_field.related_field();

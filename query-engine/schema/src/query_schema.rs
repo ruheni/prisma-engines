@@ -1,8 +1,8 @@
-use crate::{EnumType, IdentifierType, ObjectType, OutputField};
-use prisma_models::{InternalDataModelRef, ModelRef};
+use crate::{IdentifierType, ObjectType, OutputField};
+use prisma_models::{InternalDataModel, ModelRef};
 use psl::{
-    datamodel_connector::{ConnectorCapabilities, ConnectorCapability, RelationMode},
-    PreviewFeatures,
+    datamodel_connector::{Connector, ConnectorCapabilities, ConnectorCapability, RelationMode},
+    PreviewFeature, PreviewFeatures,
 };
 use std::{collections::HashMap, fmt};
 
@@ -11,19 +11,23 @@ use std::{collections::HashMap, fmt};
 ///
 /// Conceptually, a query schema stores two trees (query/mutation) that consist of input and output
 /// types.
-#[derive(Debug)]
 pub struct QuerySchema {
     /// Internal abstraction over the datamodel AST.
-    pub internal_data_model: InternalDataModelRef,
+    pub internal_data_model: InternalDataModel,
 
     /// Information about the connector this schema was build for.
     pub context: ConnectorContext,
 
-    // Indexes query fields by their own query info for easier access.
+    pub(crate) enable_raw_queries: bool,
+    pub(crate) connector: &'static dyn Connector,
+
+    /// Indexes query fields by their own query info for easier access.
     query_map: HashMap<QueryInfo, usize>,
 
-    // Indexes mutation fields by their own query info for easier access.
+    /// Indexes mutation fields by their own query info for easier access.
     mutation_map: HashMap<QueryInfo, usize>,
+
+    preview_features: PreviewFeatures,
 }
 
 /// Connector meta information, to be used in query execution if necessary.
@@ -54,39 +58,59 @@ impl ConnectorContext {
 }
 
 impl QuerySchema {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        query: OutputObjectTypeId,
-        mutation: OutputObjectTypeId,
-        internal_dara_model: InternalDataModelRef,
-        capabilities: ConnectorCapabilities,
+        enable_raw_queries: bool,
+        connector: &'static dyn Connector,
+        preview_features: PreviewFeatures,
+        internal_data_model: InternalDataModel,
     ) -> Self {
         let features = internal_data_model.schema.configuration.preview_features();
         let relation_mode = internal_data_model.schema.relation_mode();
         let mut query_map: HashMap<QueryInfo, usize> = HashMap::new();
         let mut mutation_map: HashMap<QueryInfo, usize> = HashMap::new();
 
-        for (field_idx, field) in db[query].get_fields().enumerate() {
+        for (field_idx, field) in crate::build::query_type::build(todo!()).get_fields().enumerate() {
             if let Some(query_info) = field.query_info() {
                 query_map.insert(query_info.to_owned(), field_idx);
             }
         }
 
-        for (field_idx, field) in db[mutation].get_fields().enumerate() {
+        for (field_idx, field) in crate::build::mutation_type::build(todo!()).get_fields().enumerate() {
             if let Some(query_info) = field.query_info() {
                 mutation_map.insert(query_info.to_owned(), field_idx);
             }
         }
 
         QuerySchema {
+            preview_features,
+            enable_raw_queries,
             query_map,
             mutation_map,
             internal_data_model,
-            context: ConnectorContext::new(capabilities, features, relation_mode),
+            connector,
+            context: ConnectorContext::new(connector.capabilities(), features, relation_mode),
         }
     }
 
-    pub fn find_mutation_field<T>(&self, name: T) -> Option<&OutputField>
+    pub(crate) fn supports_any(&self, capabilities: &[ConnectorCapability]) -> bool {
+        capabilities.iter().any(|c| self.connector.has_capability(*c))
+    }
+
+    pub(crate) fn can_full_text_search(&self) -> bool {
+        self.has_feature(PreviewFeature::FullTextSearch)
+            && (self.has_capability(ConnectorCapability::FullTextSearchWithoutIndex)
+                || self.has_capability(ConnectorCapability::FullTextSearchWithIndex))
+    }
+
+    pub(crate) fn has_feature(&self, feature: PreviewFeature) -> bool {
+        self.preview_features.contains(feature)
+    }
+
+    pub(crate) fn has_capability(&self, capability: ConnectorCapability) -> bool {
+        self.connector.has_capability(capability)
+    }
+
+    pub fn find_mutation_field<T>(&self, name: T) -> Option<OutputField<'_>>
     where
         T: Into<String>,
     {
@@ -94,7 +118,7 @@ impl QuerySchema {
         self.mutation().get_fields().find(|f| f.name == name)
     }
 
-    pub fn find_query_field<T>(&self, name: T) -> Option<&OutputField>
+    pub fn find_query_field<T>(&self, name: T) -> Option<OutputField<'_>>
     where
         T: Into<String>,
     {
@@ -106,7 +130,7 @@ impl QuerySchema {
         &self,
         model_name: Option<&str>,
         tag: QueryTag,
-    ) -> Option<&OutputField> {
+    ) -> Option<OutputField<'_>> {
         let model = model_name.and_then(|name| self.internal_data_model.find_model(name).ok());
         let query_info = QueryInfo { model, tag };
 
@@ -119,7 +143,7 @@ impl QuerySchema {
         &self,
         model_name: Option<&str>,
         tag: QueryTag,
-    ) -> Option<&OutputField> {
+    ) -> Option<OutputField<'_>> {
         let model = model_name.and_then(|name| self.internal_data_model.find_model(name).ok());
         let query_info = QueryInfo { model, tag };
 
@@ -128,16 +152,12 @@ impl QuerySchema {
             .and_then(|idx| self.mutation().get_fields().nth(*idx))
     }
 
-    pub fn mutation(&self) -> &ObjectType {
-        &self.db[self.mutation]
+    pub fn mutation(&self) -> ObjectType<'_> {
+        todo!()
     }
 
-    pub fn query(&self) -> &ObjectType {
-        &self.db[self.query]
-    }
-
-    pub fn enum_types(&self) -> impl Iterator<Item = &EnumType> {
-        self.db.iter_enum_types()
+    pub fn query(&self) -> ObjectType<'_> {
+        todo!()
     }
 
     pub fn context(&self) -> &ConnectorContext {

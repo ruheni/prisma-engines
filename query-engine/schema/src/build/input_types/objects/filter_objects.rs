@@ -3,8 +3,8 @@ use constants::filters;
 use prisma_models::{prelude::ParentContainer, CompositeFieldRef};
 
 pub(crate) fn scalar_filter_object_type<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &'a ModelRef,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
     include_aggregates: bool,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ScalarFilterInput(model.clone(), include_aggregates));
@@ -12,38 +12,39 @@ pub(crate) fn scalar_filter_object_type<'a>(
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_tag(ObjectTag::WhereInputType(ParentContainer::Model(model.clone())));
 
-    let id = ctx.cache_input_type(ident, input_object);
-    let object_type = InputType::object(id);
+    input_object.fields = Box::new(move || {
+        let object_type = InputType::object(input_object);
 
-    let mut input_fields = vec![
-        input_field(
-            ctx,
-            filters::AND,
-            vec![object_type.clone(), InputType::list(object_type.clone())],
-            None,
-        )
-        .optional(),
-        input_field(ctx, filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
-        input_field(
-            ctx,
-            filters::NOT,
-            vec![object_type.clone(), InputType::list(object_type)],
-            None,
-        )
-        .optional(),
-    ];
+        let mut input_fields = vec![
+            input_field(
+                ctx,
+                filters::AND,
+                vec![object_type.clone(), InputType::list(object_type.clone())],
+                None,
+            )
+            .optional(),
+            input_field(ctx, filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
+            input_field(
+                ctx,
+                filters::NOT,
+                vec![object_type.clone(), InputType::list(object_type)],
+                None,
+            )
+            .optional(),
+        ];
 
-    input_fields.extend(model.fields().filter_all(|_| true).into_iter().filter_map(|f| match f {
-        ModelField::Scalar(_) => Some(input_fields::filter_input_field(ctx, &f, include_aggregates)),
-        ModelField::Relation(_) => None,
-        ModelField::Composite(_) => None, // [Composites] todo
-    }));
+        input_fields.extend(model.fields().filter_all(|_| true).into_iter().filter_map(|f| match f {
+            ModelField::Scalar(_) => Some(input_fields::filter_input_field(ctx, &f, include_aggregates)),
+            ModelField::Relation(_) => None,
+            ModelField::Composite(_) => None, // [Composites] todo
+        }));
+        input_fields
+    });
 
-    ctx.db[id].set_fields(input_fields);
-    id
+    input_object
 }
 
-pub(crate) fn where_object_type<T>(ctx: &mut BuilderContext<'_>, container: T) -> InputObjectTypeId
+pub(crate) fn where_object_type<'a, T>(ctx: BuilderContext<'a>, container: T) -> InputObjectType<'a>
 where
     T: Into<ParentContainer>,
 {
@@ -52,39 +53,39 @@ where
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_tag(ObjectTag::WhereInputType(container.clone()));
-    let id = ctx.cache_input_type(ident, input_object);
-    let object_type = InputType::object(id);
+    input_object.fields = Box::new(|| {
+        let object_type = InputType::object(input_object);
 
-    let mut fields = vec![
-        input_field(
-            ctx,
-            filters::AND,
-            vec![object_type.clone(), InputType::list(object_type.clone())],
-            None,
-        )
-        .optional(),
-        input_field(ctx, filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
-        input_field(
-            ctx,
-            filters::NOT,
-            vec![object_type.clone(), InputType::list(object_type)],
-            None,
-        )
-        .optional(),
-    ];
+        let mut fields = vec![
+            input_field(
+                ctx,
+                filters::AND,
+                vec![object_type.clone(), InputType::list(object_type.clone())],
+                None,
+            )
+            .optional(),
+            input_field(ctx, filters::OR, vec![InputType::list(object_type.clone())], None).optional(),
+            input_field(
+                ctx,
+                filters::NOT,
+                vec![object_type.clone(), InputType::list(object_type)],
+                None,
+            )
+            .optional(),
+        ];
 
-    let input_fields = container
-        .fields()
-        .into_iter()
-        .map(|f| input_fields::filter_input_field(ctx, &f, false));
+        let input_fields = container
+            .fields()
+            .into_iter()
+            .map(|f| input_fields::filter_input_field(ctx, &f, false));
 
-    fields.extend(input_fields);
-
-    ctx.db[id].set_fields(fields);
-    id
+        fields.extend(input_fields);
+        fields
+    });
+    input_object
 }
 
-pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> InputObjectTypeId {
+pub(crate) fn where_unique_object_type<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::WhereUniqueInput(model.clone()));
 
     // Split unique & ID fields vs all the other fields
@@ -102,7 +103,7 @@ pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &Mod
                 .fields()
                 .map(|f| ScalarFieldRef::from((model.dm.clone(), f)))
                 .collect();
-            let typ = compound_field_unique_object_type(ctx, model, index.name(), fields);
+            let typ = compound_field_unique_object_type(ctx, &model, index.name(), fields);
             let name = compound_index_field_name(&index);
 
             (name, typ)
@@ -116,7 +117,7 @@ pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &Mod
         .map(|pk| {
             let name = compound_id_field_name(pk);
             let fields = model.fields().id_fields().unwrap().collect();
-            let typ = compound_field_unique_object_type(ctx, model, pk.name(), fields);
+            let typ = compound_field_unique_object_type(ctx, &model, pk.name(), fields);
 
             (name, typ)
         });
@@ -142,135 +143,132 @@ pub(crate) fn where_unique_object_type(ctx: &mut BuilderContext<'_>, model: &Mod
         input_object.require_exactly_one_field();
     }
 
-    let id = ctx.cache_input_type(ident, input_object);
+    input_object.fields = Box::new(|| {
+        let mut fields: Vec<InputField<'_>> = unique_fields
+            .into_iter()
+            .map(|f| {
+                let sf = f.as_scalar().unwrap();
+                let name = sf.name();
+                let typ = map_scalar_input_type_for_field(ctx, sf);
 
-    let mut fields: Vec<InputField<'_>> = unique_fields
-        .into_iter()
-        .map(|f| {
-            let sf = f.as_scalar().unwrap();
-            let name = sf.name();
-            let typ = map_scalar_input_type_for_field(ctx, sf);
+                input_field(ctx, name, typ, None).optional()
+            })
+            .collect();
 
-            input_field(ctx, name, typ, None).optional()
-        })
-        .collect();
+        // @@unique compound fields.
+        let compound_unique_fields: Vec<InputField<'_>> = compound_uniques
+            .into_iter()
+            .map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional())
+            .collect();
 
-    // @@unique compound fields.
-    let compound_unique_fields: Vec<InputField<'_>> = compound_uniques
-        .into_iter()
-        .map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional())
-        .collect();
+        // @@id compound field (there can be only one per model).
+        let compound_id_field =
+            compound_id.map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional());
 
-    // @@id compound field (there can be only one per model).
-    let compound_id_field =
-        compound_id.map(|(name, typ)| input_field(ctx, name, InputType::object(typ), None).optional());
+        // Boolean operators AND/OR/NOT, which are _not_ where unique inputs
+        let where_input_type = InputType::object(where_object_type(ctx, ParentContainer::Model(model.clone())));
+        let boolean_operators = vec![
+            input_field(
+                ctx,
+                filters::AND,
+                vec![where_input_type.clone(), InputType::list(where_input_type.clone())],
+                None,
+            )
+            .optional(),
+            input_field(ctx, filters::OR, vec![InputType::list(where_input_type.clone())], None).optional(),
+            input_field(
+                ctx,
+                filters::NOT,
+                vec![where_input_type.clone(), InputType::list(where_input_type)],
+                None,
+            )
+            .optional(),
+        ];
 
-    // Boolean operators AND/OR/NOT, which are _not_ where unique inputs
-    let where_input_type = InputType::object(where_object_type(ctx, ParentContainer::Model(model.clone())));
-    let boolean_operators = vec![
-        input_field(
-            ctx,
-            filters::AND,
-            vec![where_input_type.clone(), InputType::list(where_input_type.clone())],
-            None,
-        )
-        .optional(),
-        input_field(ctx, filters::OR, vec![InputType::list(where_input_type.clone())], None).optional(),
-        input_field(
-            ctx,
-            filters::NOT,
-            vec![where_input_type.clone(), InputType::list(where_input_type)],
-            None,
-        )
-        .optional(),
-    ];
+        let rest_fields: Vec<_> = rest_fields
+            .into_iter()
+            .map(|f| input_fields::filter_input_field(ctx, &f, false))
+            .collect();
 
-    let rest_fields: Vec<_> = rest_fields
-        .into_iter()
-        .map(|f| input_fields::filter_input_field(ctx, &f, false))
-        .collect();
+        fields.extend(compound_unique_fields);
+        fields.extend(compound_id_field);
 
-    fields.extend(compound_unique_fields);
-    fields.extend(compound_id_field);
+        if ctx.has_feature(PreviewFeature::ExtendedWhereUnique) {
+            fields.extend(boolean_operators);
+            fields.extend(rest_fields);
+        }
 
-    if ctx.has_feature(PreviewFeature::ExtendedWhereUnique) {
-        fields.extend(boolean_operators);
-        fields.extend(rest_fields);
-    }
+        fields
+    });
 
-    ctx.db[id].set_fields(fields);
-    id
+    input_object
 }
 
 /// Generates and caches an input object type for a compound field.
-fn compound_field_unique_object_type(
-    ctx: &mut BuilderContext<'_>,
+fn compound_field_unique_object_type<'a>(
+    ctx: BuilderContext<'a>,
     model: &ModelRef,
     alias: Option<&str>,
     from_fields: Vec<ScalarFieldRef>,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(format!(
         "{}{}CompoundUniqueInput",
         model.name(),
         compound_object_name(alias, &from_fields)
     ));
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
+    let mut input_object = init_input_object_type(ident.clone());
+    input_object.fields = Box::new(|| {
+        from_fields
+            .into_iter()
+            .map(|field| {
+                let name = field.name();
+                let typ = map_scalar_input_type_for_field(ctx, &field);
 
-    let object_fields = from_fields
-        .into_iter()
-        .map(|field| {
-            let name = field.name();
-            let typ = map_scalar_input_type_for_field(ctx, &field);
-
-            input_field(ctx, name, typ, None)
-        })
-        .collect();
-
-    ctx.db[id].set_fields(object_fields);
-    id
+                input_field(ctx, name, typ, None)
+            })
+            .collect()
+    });
+    input_object
 }
 
 /// Object used for full composite equality, e.g. `{ field: "value", field2: 123 } == { field: "value" }`.
 /// If the composite is a list, only lists are allowed for comparison, no shorthands are used.
-pub(crate) fn composite_equality_object<'a>(
-    ctx: &mut BuilderContext<'a>,
-    cf: &CompositeFieldRef,
-) -> InputObjectType<'a> {
+pub(crate) fn composite_equality_object<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(format!("{}ObjectEqualityInput", cf.typ().name()));
 
     let input_object = init_input_object_type(ident);
-    let id = ctx.cache_input_type(ident, input_object);
-    let mut fields = vec![];
+    input_object.fields = Box::new(|| {
+        let mut fields = vec![];
 
-    let composite_type = cf.typ();
-    let input_fields = composite_type.fields().map(|f| match f {
-        ModelField::Scalar(sf) => {
-            let map_scalar_input_type_for_field = map_scalar_input_type_for_field(ctx, &sf);
-            input_field(ctx, sf.name(), map_scalar_input_type_for_field, None)
-                .optional_if(!sf.is_required())
-                .nullable_if(!sf.is_required() && !sf.is_list(), &mut ctx.db)
-        }
+        let composite_type = cf.typ();
+        let input_fields = composite_type.fields().map(|f| match f {
+            ModelField::Scalar(sf) => {
+                let map_scalar_input_type_for_field = map_scalar_input_type_for_field(ctx, &sf);
+                input_field(ctx, sf.name(), map_scalar_input_type_for_field, None)
+                    .optional_if(!sf.is_required())
+                    .nullable_if(!sf.is_required() && !sf.is_list())
+            }
 
-        ModelField::Composite(cf) => {
-            let types = if cf.is_list() {
-                // The object (aka shorthand) syntax is only supported because the client used to expose all
-                // list input types as T | T[]. Consider removing it one day.
-                list_union_type(InputType::object(composite_equality_object(ctx, &cf)), true)
-            } else {
-                vec![InputType::object(composite_equality_object(ctx, &cf))]
-            };
+            ModelField::Composite(cf) => {
+                let types = if cf.is_list() {
+                    // The object (aka shorthand) syntax is only supported because the client used to expose all
+                    // list input types as T | T[]. Consider removing it one day.
+                    list_union_type(InputType::object(composite_equality_object(ctx, &cf)), true)
+                } else {
+                    vec![InputType::object(composite_equality_object(ctx, &cf))]
+                };
 
-            input_field(ctx, cf.name(), types, None)
-                .optional_if(!cf.is_required())
-                .nullable_if(!cf.is_required() && !cf.is_list(), &mut ctx.db)
-        }
+                input_field(ctx, cf.name(), types, None)
+                    .optional_if(!cf.is_required())
+                    .nullable_if(!cf.is_required() && !cf.is_list())
+            }
 
-        ModelField::Relation(_) => unimplemented!(),
+            ModelField::Relation(_) => unimplemented!(),
+        });
+
+        fields.extend(input_fields);
+        fields
     });
-
-    fields.extend(input_fields);
-    ctx.db[id].set_fields(fields);
-    id
+    input_object
 }

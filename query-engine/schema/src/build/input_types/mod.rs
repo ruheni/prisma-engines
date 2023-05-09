@@ -6,11 +6,11 @@ use crate::*;
 use fields::*;
 use prisma_models::ScalarFieldRef;
 
-fn map_scalar_input_type_for_field<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarFieldRef) -> InputType<'a> {
+fn map_scalar_input_type_for_field<'a>(ctx: BuilderContext<'a>, field: &ScalarFieldRef) -> InputType<'a> {
     map_scalar_input_type(ctx, &field.type_identifier(), field.is_list())
 }
 
-fn map_scalar_input_type<'a>(ctx: &mut BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> InputType<'a> {
+fn map_scalar_input_type<'a>(ctx: BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> InputType<'a> {
     let typ = match typ {
         TypeIdentifier::String => InputType::string(),
         TypeIdentifier::Int => InputType::int(),

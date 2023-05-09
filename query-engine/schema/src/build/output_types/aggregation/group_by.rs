@@ -102,7 +102,7 @@ fn scalar_output_fields<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> V
     fields
         .into_iter()
         .map(|f| {
-            field(f.name(), vec![], field::map_scalar_output_type_for_field(ctx, &f), None)
+            field(f.name(), vec![], field::map_scalar_output_type_for_field(ctx, f), None)
                 .nullable_if(!f.is_required())
         })
         .collect()

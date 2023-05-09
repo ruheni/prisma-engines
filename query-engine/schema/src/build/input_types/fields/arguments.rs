@@ -6,14 +6,14 @@ use objects::*;
 use prisma_models::{prelude::ParentContainer, CompositeFieldRef};
 
 /// Builds "where" argument.
-pub(crate) fn where_argument<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> InputField<'a> {
+pub(crate) fn where_argument<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> InputField<'a> {
     let where_object = filter_objects::where_object_type(ctx, model);
 
     input_field(ctx, args::WHERE, InputType::object(where_object), None).optional()
 }
 
 /// Builds "where" argument which input type is the where unique type of the input builder.
-pub(crate) fn where_unique_argument<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<InputField<'a>> {
+pub(crate) fn where_unique_argument<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<InputField<'a>> {
     let input_object_type = filter_objects::where_unique_object_type(ctx, model);
 
     if input_object_type.is_empty() {
@@ -29,13 +29,13 @@ pub(crate) fn where_unique_argument<'a>(ctx: &mut BuilderContext<'a>, model: &Mo
 }
 
 /// Builds "where" (unique) argument intended for the delete field.
-pub(crate) fn delete_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
+pub(crate) fn delete_one_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<Vec<InputField<'a>>> {
     where_unique_argument(ctx, model).map(|arg| vec![arg])
 }
 
 /// Builds "where" (unique) and "data" arguments intended for the update field.
-pub(crate) fn update_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
-    where_unique_argument(ctx, model).map(|unique_arg| {
+pub(crate) fn update_one_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<Vec<InputField<'a>>> {
+    where_unique_argument(ctx, model.clone()).map(|unique_arg| {
         let update_types = update_one_objects::update_one_input_types(ctx, model, None);
 
         vec![input_field(ctx, args::DATA, update_types, None), unique_arg]
@@ -43,9 +43,9 @@ pub(crate) fn update_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &Mod
 }
 
 /// Builds "where" (unique), "create", and "update" arguments intended for the upsert field.
-pub(crate) fn upsert_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
-    where_unique_argument(ctx, model).and_then(|where_unique_arg| {
-        let update_types = update_one_objects::update_one_input_types(ctx, model, None);
+pub(crate) fn upsert_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<Vec<InputField<'a>>> {
+    where_unique_argument(ctx, model.clone()).and_then(|where_unique_arg| {
+        let update_types = update_one_objects::update_one_input_types(ctx, model.clone(), None);
         let create_types = create_one::create_one_input_types(ctx, model, None);
 
         if update_types.iter().all(|typ| typ.is_empty()) || create_types.iter().all(|typ| typ.is_empty()) {
@@ -61,33 +61,34 @@ pub(crate) fn upsert_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRe
 }
 
 /// Builds "where" and "data" arguments intended for the update many field.
-pub(crate) fn update_many_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
-    let update_many_types = update_many_objects::update_many_input_types(ctx, model, None);
-    let where_arg = where_argument(ctx, model);
+pub(crate) fn update_many_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Vec<InputField<'a>> {
+    let update_many_types = update_many_objects::update_many_input_types(ctx, model.clone(), None);
+    let where_arg = where_argument(ctx, &model);
 
     vec![input_field(ctx, args::DATA, update_many_types, None), where_arg]
 }
 
 /// Builds "where" argument intended for the delete many field.
-pub(crate) fn delete_many_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
+pub(crate) fn delete_many_arguments<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
     let where_arg = where_argument(ctx, model);
 
     vec![where_arg]
 }
 
 /// Builds "many records where" arguments based on the given model and field.
-pub(crate) fn many_records_output_field_arguments<'a>(ctx: &mut BuilderContext<'a>, field: &'a ModelField) -> Vec<InputField<'a>> {
+pub(crate) fn many_records_output_field_arguments<'a>(
+    ctx: BuilderContext<'a>,
+    field: ModelField,
+) -> Vec<InputField<'a>> {
     match field {
         ModelField::Scalar(_) => vec![],
 
         // To-many relation.
-        ModelField::Relation(rf) if rf.is_list() => {
-            relation_to_many_selection_arguments(ctx, &rf.related_model(), true)
-        }
+        ModelField::Relation(rf) if rf.is_list() => relation_to_many_selection_arguments(ctx, rf.related_model(), true),
 
         // To-one optional relation.
         ModelField::Relation(rf) if !rf.is_required() && ctx.has_feature(PreviewFeature::ExtendedWhereUnique) => {
-            relation_to_one_selection_arguments(ctx, &rf.related_model())
+            relation_to_one_selection_arguments(ctx, rf.related_model())
         }
 
         // To-one required relation.
@@ -103,11 +104,11 @@ pub(crate) fn many_records_output_field_arguments<'a>(ctx: &mut BuilderContext<'
 
 /// Builds "many records where" arguments for to-many relation selection sets.
 pub(crate) fn relation_to_many_selection_arguments<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &'a ModelRef,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
     include_distinct: bool,
 ) -> Vec<InputField<'a>> {
-    let unique_input_type = InputType::object(filter_objects::where_unique_object_type(ctx, model));
+    let unique_input_type = InputType::object(filter_objects::where_unique_object_type(ctx, model.clone()));
     let order_by_options = OrderByOptions {
         include_relations: true,
         include_scalar_aggregations: false,
@@ -115,15 +116,15 @@ pub(crate) fn relation_to_many_selection_arguments<'a>(
     };
 
     let mut args = vec![
-        where_argument(ctx, model),
-        order_by_argument(ctx, &model.into(), &order_by_options),
+        where_argument(ctx, &model),
+        order_by_argument(ctx, model.clone().into(), order_by_options),
         input_field(ctx, args::CURSOR, unique_input_type, None).optional(),
         input_field(ctx, args::TAKE, InputType::int(), None).optional(),
         input_field(ctx, args::SKIP, InputType::int(), None).optional(),
     ];
 
     if include_distinct {
-        let input_type = InputType::list(InputType::Enum(model_field_enum(ctx, model)));
+        let input_type = InputType::list(InputType::Enum(model_field_enum(ctx, &model)));
         args.push(input_field(ctx, args::DISTINCT, input_type, None).optional());
     }
 
@@ -131,20 +132,23 @@ pub(crate) fn relation_to_many_selection_arguments<'a>(
 }
 
 /// Builds "many records where" arguments for to-many relation selection sets.
-pub(crate) fn relation_to_one_selection_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
-    vec![where_argument(ctx, model)]
+pub(crate) fn relation_to_one_selection_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Vec<InputField<'a>> {
+    vec![where_argument(ctx, &model)]
 }
 
 /// Builds "many composite where" arguments for to-many composite selection sets.
-pub(crate) fn composite_selection_arguments<'a>(_ctx: &mut BuilderContext<'a>, _cf: &'a CompositeFieldRef) -> Vec<InputField<'a>> {
+pub(crate) fn composite_selection_arguments<'a>(
+    _ctx: BuilderContext<'a>,
+    _cf: CompositeFieldRef,
+) -> Vec<InputField<'a>> {
     vec![]
 }
 
 // Builds "orderBy" argument.
 pub(crate) fn order_by_argument<'a>(
-    ctx: &mut BuilderContext<'a>,
-    container: &'a ParentContainer,
-    options: &'a OrderByOptions,
+    ctx: BuilderContext<'a>,
+    container: ParentContainer,
+    options: OrderByOptions,
 ) -> InputField<'a> {
     let order_object_type = InputType::object(order_by_objects::order_by_object_type(ctx, container, options));
 
@@ -157,13 +161,13 @@ pub(crate) fn order_by_argument<'a>(
     .optional()
 }
 
-pub(crate) fn group_by_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
+pub(crate) fn group_by_arguments<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
     let field_enum_type = InputType::Enum(model_field_enum(ctx, model));
-    let filter_object = InputType::object(filter_objects::scalar_filter_object_type(ctx, model, true));
+    let filter_object = InputType::object(filter_objects::scalar_filter_object_type(ctx, model.clone(), true));
 
     vec![
         where_argument(ctx, model),
-        order_by_argument(ctx, &model.into(), &OrderByOptions::new().with_aggregates()),
+        order_by_argument(ctx, model.into(), OrderByOptions::new().with_aggregates()),
         input_field(
             ctx,
             args::BY,

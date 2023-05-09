@@ -5,7 +5,7 @@ use psl::datamodel_connector::ConnectorCapability;
 
 /// Builds filter types for the given model field.
 pub(crate) fn get_field_filter_types<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     field: &ModelField,
     include_aggregates: bool,
 ) -> Vec<InputType<'a>> {
@@ -57,14 +57,14 @@ pub(crate) fn get_field_filter_types<'a>(
 }
 
 /// Builds shorthand relation equality (`is`) filter for to-one: `where: { relation_field: { ... } }` (no `is` in between).
-fn to_one_relation_filter_shorthand_types<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> InputType<'a> {
+fn to_one_relation_filter_shorthand_types<'a>(ctx: BuilderContext<'a>, rf: &RelationFieldRef) -> InputType<'a> {
     let related_model = rf.related_model();
     let related_input_type = filter_objects::where_object_type(ctx, &related_model);
 
     InputType::object(related_input_type)
 }
 
-fn to_many_relation_filter_object<'a>(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectType<'a> {
+fn to_many_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: &'a RelationFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToManyRelationFilterInput(rf.related_model()));
 
     let mut object = init_input_object_type(ident.clone());
@@ -81,7 +81,7 @@ fn to_many_relation_filter_object<'a>(ctx: &mut BuilderContext<'_>, rf: &Relatio
     object
 }
 
-fn to_one_relation_filter_object<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> InputObjectType<'a> {
+fn to_one_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: &RelationFieldRef) -> InputObjectType<'a> {
     // TODO: The ToOneRelationFilterInput is currently broken as it does not take nullability into account.
     // TODO: This means that the first relation field to be traversed will set the nullability for all other relation field that points to the same related model.
     let ident = Identifier::new_prisma(IdentifierType::ToOneRelationFilterInput(rf.related_model()));
@@ -104,7 +104,7 @@ fn to_one_relation_filter_object<'a>(ctx: &mut BuilderContext<'a>, rf: &Relation
 
 /// Builds shorthand composite equality (`equals`) filter for to-one: `where: { composite_field: { ... } }` (no `equals` in between).
 fn to_one_composite_filter_shorthand_types<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     cf: &'a CompositeFieldRef,
 ) -> InputType<'a> {
     let equality_object_type = filter_objects::composite_equality_object(ctx, cf);
@@ -112,7 +112,7 @@ fn to_one_composite_filter_shorthand_types<'a>(
     InputType::object(equality_object_type)
 }
 
-fn to_one_composite_filter_object<'a>(ctx: &mut BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
+fn to_one_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToOneCompositeFilterInput(cf.typ(), cf.arity()));
 
     let mut object = init_input_object_type(ident.clone());
@@ -144,7 +144,7 @@ fn to_one_composite_filter_object<'a>(ctx: &mut BuilderContext<'a>, cf: &'a Comp
     object
 }
 
-fn to_many_composite_filter_object<'a>(ctx: &mut BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
+fn to_many_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToManyCompositeFilterInput(cf.typ()));
 
     let mut object = init_input_object_type(ident);
@@ -181,7 +181,7 @@ fn to_many_composite_filter_object<'a>(ctx: &mut BuilderContext<'a>, cf: &'a Com
     object
 }
 
-fn scalar_list_filter_type<'a>(ctx: &mut BuilderContext<'a>, sf: &'a ScalarFieldRef) -> InputObjectType<'a> {
+fn scalar_list_filter_type<'a>(ctx: BuilderContext<'a>, sf: &'a ScalarFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ScalarListFilterInput(
         ctx.internal_data_model.clone().zip(sf.type_identifier()),
         sf.is_required(),
@@ -219,7 +219,7 @@ fn scalar_list_filter_type<'a>(ctx: &mut BuilderContext<'a>, sf: &'a ScalarField
 }
 
 fn full_scalar_filter_type<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     typ: &TypeIdentifier,
     native_type: Option<&NativeTypeInstance>,
     list: bool,
@@ -359,12 +359,12 @@ fn full_scalar_filter_type<'a>(
     object
 }
 
-fn is_set_input_field<'a>(ctx: &mut BuilderContext<'a>) -> InputField<'a> {
+fn is_set_input_field<'a>(ctx: BuilderContext<'a>) -> InputField<'a> {
     input_field(ctx, filters::IS_SET, InputType::boolean(), None).optional()
 }
 
 fn equality_filters<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     mapped_type: InputType<'a>,
     nullable: bool,
 ) -> impl Iterator<Item = InputField<'a>> {
@@ -378,7 +378,7 @@ fn equality_filters<'a>(
 }
 
 fn json_equality_filters<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     mapped_type: InputType<'a>,
     nullable: bool,
 ) -> impl Iterator<Item = InputField<'a>> {
@@ -399,7 +399,7 @@ fn json_equality_filters<'a>(
 }
 
 fn inclusion_filters<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     mapped_type: InputType<'a>,
     nullable: bool,
 ) -> impl Iterator<Item = InputField<'a>> {
@@ -426,7 +426,7 @@ fn inclusion_filters<'a>(
 }
 
 fn alphanumeric_filters<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     mapped_type: InputType<'a>,
 ) -> impl Iterator<Item = InputField<'a>> {
     // We disable referencing fields on alphanumeric json filters for MySQL & MariaDB because we can't make it work
@@ -448,7 +448,7 @@ fn alphanumeric_filters<'a>(
 }
 
 fn string_filters<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     input_object_type_name: &str,
     mapped_type: InputType<'a>,
 ) -> impl Iterator<Item = InputField<'a>> {
@@ -467,7 +467,7 @@ fn string_filters<'a>(
     string_filters.into_iter()
 }
 
-fn json_filters<'a>(ctx: &mut BuilderContext<'a>) -> impl Iterator<Item = InputField<'a>> {
+fn json_filters<'a>(ctx: BuilderContext<'a>) -> impl Iterator<Item = InputField<'a>> {
     // TODO: also add json-specific "keys" filters
     // TODO: add json_type filter
     let path_type = if ctx.has_capability(ConnectorCapability::JsonFilteringJsonPath) {
@@ -504,7 +504,7 @@ fn json_filters<'a>(ctx: &mut BuilderContext<'a>) -> impl Iterator<Item = InputF
     .into_iter()
 }
 
-fn query_mode_field<'a>(ctx: &mut BuilderContext<'a>, nested: bool) -> impl Iterator<Item = InputField<'a>> {
+fn query_mode_field<'a>(ctx: BuilderContext<'a>, nested: bool) -> impl Iterator<Item = InputField<'a>> {
     // Limit query mode field to the topmost filter level.
     // Only build mode field for connectors with insensitive filter support.
     let fields = if !nested && ctx.has_capability(ConnectorCapability::InsensitiveFilters) {
@@ -527,7 +527,7 @@ fn query_mode_field<'a>(ctx: &mut BuilderContext<'a>, nested: bool) -> impl Iter
 }
 
 fn aggregate_filter_field<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     aggregation: &str,
     typ: &'a TypeIdentifier,
     nullable: bool,
@@ -546,7 +546,7 @@ fn map_avg_type_ident(typ: TypeIdentifier) -> TypeIdentifier {
 
 // Shorthand `not equals` filter input field, skips the nested object filter.
 fn not_filter_field<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     typ: &'a TypeIdentifier,
     native_type: Option<&'a NativeTypeInstance>,
     mapped_scalar_type: InputType<'a>,
@@ -570,7 +570,7 @@ fn not_filter_field<'a>(
             let ty = mapped_scalar_type.with_field_ref_input(ctx);
             input_field(ctx, filters::NOT_LOWERCASE, ty, None)
                 .optional()
-                .nullable_if(is_nullable, &mut ctx.db)
+                .nullable_if(is_nullable)
         }
 
         _ => {
@@ -587,7 +587,7 @@ fn not_filter_field<'a>(
 
             input_field(ctx, filters::NOT_LOWERCASE, vec![mapped_scalar_type, shorthand], None)
                 .optional()
-                .nullable_if(is_nullable, &mut ctx.db)
+                .nullable_if(is_nullable)
         }
     }
 }

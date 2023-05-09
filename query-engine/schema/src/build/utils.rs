@@ -42,7 +42,7 @@ where
 
 /// Field convenience wrapper function.
 pub(crate) fn input_field<'a, T, S>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     name: T,
     field_types: S,
     default_value: Option<DefaultKind>,

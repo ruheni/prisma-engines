@@ -2,7 +2,7 @@ use super::*;
 use input_types::fields::arguments;
 use prisma_models::{CompositeFieldRef, ScalarFieldRef};
 
-pub(crate) fn map_output_field<'a>(ctx: &mut BuilderContext<'a>, model_field: &ModelField) -> OutputField<'a> {
+pub(crate) fn map_output_field<'a>(ctx: BuilderContext<'a>, model_field: ModelField) -> OutputField<'a> {
     field(
         model_field.name(),
         arguments::many_records_output_field_arguments(ctx, model_field),
@@ -12,7 +12,7 @@ pub(crate) fn map_output_field<'a>(ctx: &mut BuilderContext<'a>, model_field: &M
     .nullable_if(!model_field.is_required())
 }
 
-pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_field: &ModelField) -> OutputType<'a> {
+pub(crate) fn map_field_output_type<'a>(ctx: BuilderContext<'a>, model_field: ModelField) -> OutputType<'a> {
     match model_field {
         ModelField::Scalar(sf) => map_scalar_output_type_for_field(ctx, sf),
         ModelField::Relation(rf) => map_relation_output_type(ctx, rf),
@@ -20,18 +20,11 @@ pub(crate) fn map_field_output_type<'a>(ctx: &mut BuilderContext<'a>, model_fiel
     }
 }
 
-pub(crate) fn map_scalar_output_type_for_field<'a>(
-    ctx: &mut BuilderContext<'a>,
-    field: &ScalarFieldRef,
-) -> OutputType<'a> {
+pub(crate) fn map_scalar_output_type_for_field<'a>(ctx: BuilderContext<'a>, field: ScalarFieldRef) -> OutputType<'a> {
     map_scalar_output_type(ctx, &field.type_identifier(), field.is_list())
 }
 
-pub(crate) fn map_scalar_output_type<'a>(
-    ctx: &mut BuilderContext<'a>,
-    typ: &TypeIdentifier,
-    list: bool,
-) -> OutputType<'a> {
+pub(crate) fn map_scalar_output_type<'a>(ctx: BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> OutputType<'a> {
     let output_type = match typ {
         TypeIdentifier::String => OutputType::string(),
         TypeIdentifier::Float => OutputType::float(),
@@ -55,7 +48,7 @@ pub(crate) fn map_scalar_output_type<'a>(
     }
 }
 
-pub(crate) fn map_relation_output_type<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> OutputType<'a> {
+pub(crate) fn map_relation_output_type<'a>(ctx: BuilderContext<'a>, rf: RelationFieldRef) -> OutputType<'a> {
     let related_model_obj = OutputType::object(objects::model::model_object_type(ctx, &rf.related_model()));
 
     if rf.is_list() {
@@ -65,7 +58,7 @@ pub(crate) fn map_relation_output_type<'a>(ctx: &mut BuilderContext<'a>, rf: &Re
     }
 }
 
-fn map_composite_field_output_type<'a>(ctx: &mut BuilderContext<'a>, cf: &CompositeFieldRef) -> OutputType<'a> {
+fn map_composite_field_output_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> OutputType<'a> {
     let obj = objects::composite::composite_object_type(ctx, &cf.typ());
     let typ = OutputType::Object(obj);
 
@@ -79,7 +72,7 @@ fn map_composite_field_output_type<'a>(ctx: &mut BuilderContext<'a>, cf: &Compos
 /// Returns an aggregation field with given name if the passed fields contains any fields.
 /// Field types inside the object type of the field are determined by the passed mapper fn.
 pub(crate) fn aggregation_relation_field<'a, F, G>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     name: &str,
     model: &ModelRef,
     fields: Vec<RelationFieldRef>,
@@ -87,7 +80,7 @@ pub(crate) fn aggregation_relation_field<'a, F, G>(
     object_mapper: G,
 ) -> Option<OutputField<'a>>
 where
-    F: Fn(&mut BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
@@ -107,14 +100,14 @@ where
 
 /// Maps the object type for aggregations that operate on a field level.
 fn map_field_aggration_relation<'a, F, G>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     model: &'a ModelRef,
     fields: &'a [RelationFieldRef],
     type_mapper: F,
     object_mapper: G,
 ) -> ObjectType<'a>
 where
-    F: Fn(&mut BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a>,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!("{}CountOutputType", capitalize(model.name())));

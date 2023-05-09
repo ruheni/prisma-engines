@@ -8,14 +8,14 @@ use output_types::objects;
 use prisma_models::{ModelRef, RelationFieldRef};
 
 /// Builds a create mutation field (e.g. createUser) for given model.
-pub(crate) fn create_one<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
-    let args = create_one_arguments(ctx, model).unwrap_or_default();
+pub(crate) fn create_one<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let field_name = format!("createOne{}", model.name());
+    let args = create_one_arguments(ctx, model).unwrap_or_default();
 
     field(
         field_name,
         args,
-        OutputType::object(objects::model::model_object_type(ctx, model)),
+        OutputType::object(objects::model::model_object_type(ctx, &model)),
         Some(QueryInfo {
             model: Some(model.clone()),
             tag: QueryTag::CreateOne,
@@ -25,7 +25,7 @@ pub(crate) fn create_one<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> 
 
 /// Builds "data" argument intended for the create field.
 /// The data argument is not present if no data can be created.
-pub(crate) fn create_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<Vec<InputField<'a>>> {
+pub(crate) fn create_one_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<Vec<InputField<'a>>> {
     let create_types = create_one_input_types(ctx, model, None);
     let any_empty = create_types.iter().any(|typ| typ.is_empty());
     let all_empty = create_types.iter().all(|typ| typ.is_empty());
@@ -40,12 +40,12 @@ pub(crate) fn create_one_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &Mod
 }
 
 pub(crate) fn create_one_input_types<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &ModelRef,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
     parent_field: Option<&RelationFieldRef>,
 ) -> Vec<InputType<'a>> {
-    let checked_input = InputType::object(checked_create_input_type(ctx, model, parent_field));
-    let unchecked_input = InputType::object(unchecked_create_input_type(ctx, model, parent_field));
+    let checked_input = InputType::object(checked_create_input_type(ctx, &model, parent_field));
+    let unchecked_input = InputType::object(unchecked_create_input_type(ctx, &model, parent_field));
 
     vec![checked_input, unchecked_input]
 }
@@ -55,7 +55,7 @@ pub(crate) fn create_one_input_types<'a>(
 /// "Checked" input refers to disallowing writing relation scalars directly, as it can lead to unintended
 /// data integrity violations if used incorrectly.
 fn checked_create_input_type<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
 ) -> InputObjectType<'a> {
@@ -71,7 +71,7 @@ fn checked_create_input_type<'a>(
     input_object.fields = Box::new(|| {
         let filtered_fields = filter_checked_create_fields(model, parent_field);
         let field_mapper = CreateDataInputFieldMapper::new_checked();
-        field_mapper.map_all(ctx, &filtered_fields)
+        field_mapper.map_all(ctx, filtered_fields)
     });
     input_object
 }
@@ -81,7 +81,7 @@ fn checked_create_input_type<'a>(
 /// "Unchecked" input refers to allowing to write _all_ scalars on a model directly, which can
 /// lead to unintended data integrity violations if used incorrectly.
 fn unchecked_create_input_type<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
 ) -> InputObjectType<'a> {
@@ -97,7 +97,7 @@ fn unchecked_create_input_type<'a>(
     input_object.fields = Box::new(|| {
         let filtered_fields = filter_unchecked_create_fields(model, parent_field);
         let field_mapper = CreateDataInputFieldMapper::new_unchecked();
-        field_mapper.map_all(ctx, &filtered_fields)
+        field_mapper.map_all(ctx, filtered_fields)
     });
     input_object
 }

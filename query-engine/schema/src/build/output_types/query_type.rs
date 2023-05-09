@@ -3,44 +3,46 @@ use input_types::fields::arguments;
 
 /// Builds the root `Query` type.
 pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
-    let fields: Vec<_> = ctx
-        .internal_data_model
-        .models()
-        .flat_map(|model| {
-            let mut vec = vec![
-                find_first_field(ctx, &model),
-                find_first_or_throw_field(ctx, &model),
-                all_items_field(ctx, &model),
-                plain_aggregation_field(ctx, &model),
-            ];
+    ObjectType {
+        identifier: Identifier::new_prisma("Query"),
+        fields: Box::new(|| {
+            ctx.internal_data_model
+                .models()
+                .flat_map(|model| {
+                    let mut vec = vec![
+                        find_first_field(ctx, model.clone()),
+                        find_first_or_throw_field(ctx, model.clone()),
+                        all_items_field(ctx, model.clone()),
+                        plain_aggregation_field(ctx, model.clone()),
+                    ];
 
-            vec.push(group_by_aggregation_field(ctx, &model));
-            append_opt(&mut vec, find_unique_field(ctx, &model));
-            append_opt(&mut vec, find_unique_or_throw_field(ctx, &model));
+                    vec.push(group_by_aggregation_field(ctx, &model));
+                    append_opt(&mut vec, find_unique_field(ctx, model.clone()));
+                    append_opt(&mut vec, find_unique_or_throw_field(ctx, model.clone()));
 
-            if ctx.enable_raw_queries && ctx.has_capability(ConnectorCapability::MongoDbQueryRaw) {
-                vec.push(mongo_find_raw_field(ctx, &model));
-                vec.push(mongo_aggregate_raw_field(ctx, &model));
-            }
+                    if ctx.enable_raw_queries && ctx.has_capability(ConnectorCapability::MongoDbQueryRaw) {
+                        vec.push(mongo_find_raw_field(ctx, &model));
+                        vec.push(mongo_aggregate_raw_field(ctx, &model));
+                    }
 
-            vec
-        })
-        .collect();
-
-    let ident = Identifier::new_prisma("Query");
-    ctx.db.push_output_object_type(object_type(ident, fields, None))
+                    vec
+                })
+                .collect()
+        }),
+        model: None,
+    }
 }
 
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model.
 /// Find one unique semantics.
-fn find_unique_field<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Option<OutputField<'a>> {
+fn find_unique_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
     arguments::where_unique_argument(ctx, model).map(|arg| {
         let field_name = format!("findUnique{}", model.name());
 
         field(
             field_name,
             vec![arg],
-            OutputType::object(objects::model::map_type(ctx, model)),
+            OutputType::object(objects::model::model_object_type(ctx, model)),
             Some(QueryInfo {
                 model: Some(model.clone()),
                 tag: QueryTag::FindUnique,
@@ -52,16 +54,16 @@ fn find_unique_field<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRef) -> Opti
 
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model
 /// that will throw a NotFoundError if the item is not found
-fn find_unique_or_throw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Option<OutputField> {
+fn find_unique_or_throw_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
     arguments::where_unique_argument(ctx, model).map(|arg| {
         let field_name = format!("findUnique{}OrThrow", model.name());
 
         field(
             field_name,
             vec![arg],
-            OutputType::object(objects::model::map_type(ctx, model)),
+            OutputType::object(objects::model::model_object_type(ctx, model.clone())),
             Some(QueryInfo {
-                model: Some(model.clone()),
+                model: Some(model),
                 tag: QueryTag::FindUniqueOrThrow,
             }),
         )
@@ -70,16 +72,16 @@ fn find_unique_or_throw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) ->
 }
 
 /// Builds a find first item field for given model.
-fn find_first_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn find_first_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
     let field_name = format!("findFirst{}", model.name());
 
     field(
         field_name,
         args,
-        OutputType::object(objects::model::map_type(ctx, model)),
+        OutputType::object(objects::model::model_object_type(ctx, model.clone())),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::FindFirst,
         }),
     )
@@ -88,16 +90,16 @@ fn find_first_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputFie
 
 /// Builds a find first item field for given model that throws a NotFoundError in case the item does
 /// not exist
-fn find_first_or_throw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn find_first_or_throw_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
     let field_name = format!("findFirst{}OrThrow", model.name());
 
     field(
         field_name,
         args,
-        OutputType::object(objects::model::map_type(ctx, model)),
+        OutputType::object(objects::model::model_object_type(ctx, model.clone())),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::FindFirstOrThrow,
         }),
     )
@@ -105,28 +107,28 @@ fn find_first_or_throw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> 
 }
 
 /// Builds a "multiple" query arity items field (e.g. "users", "posts", ...) for given model.
-fn all_items_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn all_items_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
     let field_name = format!("findMany{}", model.name());
-    let object_type = objects::model::map_type(ctx, model);
+    let object_type = objects::model::model_object_type(ctx, model.clone());
 
     field(
         field_name,
         args,
         OutputType::list(OutputType::object(object_type)),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::FindMany,
         }),
     )
 }
 
 /// Builds an "aggregate" query field (e.g. "aggregateUser") for given model.
-fn plain_aggregation_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn plain_aggregation_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     field(
         format!("aggregate{}", model.name()),
         arguments::relation_to_many_selection_arguments(ctx, model, false),
-        OutputType::object(aggregation::plain::aggregation_object_type(ctx, model)),
+        OutputType::object(aggregation::plain::aggregation_object_type(ctx, &model)),
         Some(QueryInfo {
             model: Some(model.clone()),
             tag: QueryTag::Aggregate,
@@ -135,7 +137,7 @@ fn plain_aggregation_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Ou
 }
 
 /// Builds a "group by" aggregation query field (e.g. "groupByUser") for given model.
-fn group_by_aggregation_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn group_by_aggregation_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
     field(
         format!("groupBy{}", model.name()),
         arguments::group_by_arguments(ctx, model),
@@ -149,7 +151,7 @@ fn group_by_aggregation_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) ->
     )
 }
 
-fn mongo_aggregate_raw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn mongo_aggregate_raw_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
     let field_name = format!("aggregate{}Raw", model.name());
 
     field(
@@ -166,7 +168,7 @@ fn mongo_aggregate_raw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> 
     )
 }
 
-fn mongo_find_raw_field(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> OutputField {
+fn mongo_find_raw_field<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
     let field_name = format!("find{}Raw", model.name());
 
     field(

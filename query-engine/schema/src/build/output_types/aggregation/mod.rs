@@ -4,7 +4,7 @@ use prisma_models::{prelude::ParentContainer, ScalarField};
 pub(crate) mod group_by;
 pub(crate) mod plain;
 
-fn field_avg_output_type<'a>(ctx: &mut BuilderContext<'a>, field: &ScalarField) -> OutputType<'a> {
+fn field_avg_output_type<'a>(ctx: BuilderContext<'a>, field: ScalarField) -> OutputType<'a> {
     match field.type_identifier() {
         TypeIdentifier::Int | TypeIdentifier::BigInt | TypeIdentifier::Float => OutputType::float(),
         TypeIdentifier::Decimal => OutputType::decimal(),
@@ -37,7 +37,7 @@ pub(crate) fn collect_numeric_fields(container: &ParentContainer) -> Vec<ScalarF
 /// Returns an aggregation field with given name if the passed fields contains any fields.
 /// Field types inside the object type of the field are determined by the passed mapper fn.
 fn aggregation_field<'a, F, G>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     name: &str,
     model: &ModelRef,
     fields: Vec<ScalarField>,
@@ -46,7 +46,7 @@ fn aggregation_field<'a, F, G>(
     is_count: bool,
 ) -> Option<OutputField<'a>>
 where
-    F: Fn(&mut BuilderContext<'a>, &ScalarField) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, ScalarField) -> OutputType<'a>,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
@@ -56,7 +56,7 @@ where
             ctx,
             model,
             name.trim_start_matches('_'),
-            &fields,
+            fields,
             type_mapper,
             object_mapper,
             is_count,
@@ -68,16 +68,16 @@ where
 
 /// Maps the object type for aggregations that operate on a field level.
 fn map_field_aggregation_object<'a, F, G>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     model: &ModelRef,
     suffix: &str,
-    fields: &[ScalarField],
+    fields: Vec<ScalarField>,
     type_mapper: F,
     object_mapper: G,
     is_count: bool,
 ) -> ObjectType<'a>
 where
-    F: Fn(&mut BuilderContext<'a>, &ScalarField) -> OutputType<'a>,
+    F: Fn(BuilderContext<'a>, ScalarField) -> OutputType<'a>,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!(
@@ -92,7 +92,7 @@ where
             // Non-numerical fields are always set as nullable
             // This is because when there's no data, doing aggregation on them will return NULL
             fields
-                .iter()
+                .into_iter()
                 .map(|sf| field(sf.name(), vec![], type_mapper(ctx, sf), None).nullable_if(!is_count))
                 .collect()
         }),

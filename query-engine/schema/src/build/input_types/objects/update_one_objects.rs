@@ -3,9 +3,9 @@ use constants::args;
 use psl::datamodel_connector::ConnectorCapability;
 
 pub(crate) fn update_one_input_types<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> Vec<InputType<'a>> {
     let checked_input = InputType::object(checked_update_one_input_type(ctx, model, parent_field));
     let unchecked_input = InputType::object(unchecked_update_one_input_type(ctx, model, parent_field));
@@ -15,9 +15,9 @@ pub(crate) fn update_one_input_types<'a>(
 
 /// Builds "<x>UpdateInput" input object type.
 fn checked_update_one_input_type<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &'a ModelRef,
-    parent_field: Option<&'a RelationFieldRef>,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CheckedUpdateOneInput(
         model.clone(),
@@ -26,18 +26,18 @@ fn checked_update_one_input_type<'a>(
 
     let mut input_object = init_input_object_type(ident);
     input_object.fields = Box::new(|| {
-        let filtered_fields = filter_checked_update_fields(ctx, model, parent_field);
+        let filtered_fields = filter_checked_update_fields(ctx, &model, parent_field.as_ref());
         let field_mapper = UpdateDataInputFieldMapper::new_checked();
-        field_mapper.map_all(ctx, &filtered_fields)
+        field_mapper.map_all(ctx, filtered_fields)
     });
     input_object
 }
 
 /// Builds "<x>UncheckedUpdateInput" input object type.
 fn unchecked_update_one_input_type<'a>(
-    ctx: &mut BuilderContext<'a>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+    ctx: BuilderContext<'a>,
+    model: ModelRef,
+    parent_field: Option<RelationFieldRef>,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UncheckedUpdateOneInput(
         model.clone(),
@@ -46,9 +46,9 @@ fn unchecked_update_one_input_type<'a>(
 
     let mut input_object = init_input_object_type(ident);
     input_object.fields = Box::new(|| {
-        let filtered_fields = filter_unchecked_update_fields(ctx, model, parent_field);
+        let filtered_fields = filter_unchecked_update_fields(ctx, &model, parent_field.as_ref());
         let field_mapper = UpdateDataInputFieldMapper::new_unchecked();
-        field_mapper.map_all(ctx, &filtered_fields)
+        field_mapper.map_all(ctx, filtered_fields)
     });
 
     input_object
@@ -56,7 +56,7 @@ fn unchecked_update_one_input_type<'a>(
 
 /// Filters the given model's fields down to the allowed ones for checked update.
 pub(super) fn filter_checked_update_fields(
-    ctx: &BuilderContext<'_>,
+    ctx: BuilderContext<'_>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
 ) -> Vec<ModelField> {
@@ -99,7 +99,7 @@ pub(super) fn filter_checked_update_fields(
 
 /// Filters the given model's fields down to the allowed ones for unchecked update.
 pub(super) fn filter_unchecked_update_fields(
-    ctx: &mut BuilderContext<'_>,
+    ctx: BuilderContext<'_>,
     model: &ModelRef,
     parent_field: Option<&RelationFieldRef>,
 ) -> Vec<ModelField> {
@@ -159,7 +159,7 @@ pub(super) fn filter_unchecked_update_fields(
 /// Builds "<x>UpdateWithWhereUniqueNestedInput" / "<x>UpdateWithWhereUniqueWithout<y>Input" input object types.
 /// Simple combination object of "where" and "data".
 pub(crate) fn update_one_where_combination_object<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     update_types: Vec<InputType<'a>>,
     parent_field: &RelationFieldRef,
 ) -> InputObjectType<'a> {
@@ -168,7 +168,7 @@ pub(crate) fn update_one_where_combination_object<'a>(
     ));
 
     let related_model = parent_field.related_model();
-    let where_input_object = filter_objects::where_unique_object_type(ctx, &related_model);
+    let where_input_object = filter_objects::where_unique_object_type(ctx, related_model);
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.fields = Box::new(|| {
@@ -183,9 +183,9 @@ pub(crate) fn update_one_where_combination_object<'a>(
 /// Builds "<x>UpdateWithWhereUniqueWithout<y>Input" input object types.
 /// Simple combination object of "where" and "data" for to-one relations.
 pub(crate) fn update_to_one_rel_where_combination_object<'a>(
-    ctx: &mut BuilderContext<'a>,
+    ctx: BuilderContext<'a>,
     update_types: impl IntoIterator<Item = InputType<'a>>,
-    parent_field: &'a RelationFieldRef,
+    parent_field: RelationFieldRef,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UpdateToOneRelWhereCombinationInput(
         parent_field.related_field(),
