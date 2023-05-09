@@ -16,7 +16,7 @@ pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
                         plain_aggregation_field(ctx, model.clone()),
                     ];
 
-                    vec.push(group_by_aggregation_field(ctx, &model));
+                    vec.push(group_by_aggregation_field(ctx, model.clone()));
                     append_opt(&mut vec, find_unique_field(ctx, model.clone()));
                     append_opt(&mut vec, find_unique_or_throw_field(ctx, model.clone()));
 
@@ -36,15 +36,15 @@ pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model.
 /// Find one unique semantics.
 fn find_unique_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
-    arguments::where_unique_argument(ctx, model).map(|arg| {
+    arguments::where_unique_argument(ctx, model.clone()).map(|arg| {
         let field_name = format!("findUnique{}", model.name());
 
         field(
             field_name,
             vec![arg],
-            OutputType::object(objects::model::model_object_type(ctx, model)),
+            OutputType::object(objects::model::model_object_type(ctx, model.clone())),
             Some(QueryInfo {
-                model: Some(model.clone()),
+                model: Some(model),
                 tag: QueryTag::FindUnique,
             }),
         )
@@ -55,7 +55,7 @@ fn find_unique_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<Out
 /// Builds a "single" query arity item field (e.g. "user", "post" ...) for given model
 /// that will throw a NotFoundError if the item is not found
 fn find_unique_or_throw_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
-    arguments::where_unique_argument(ctx, model).map(|arg| {
+    arguments::where_unique_argument(ctx, model.clone()).map(move |arg| {
         let field_name = format!("findUnique{}OrThrow", model.name());
 
         field(
@@ -73,7 +73,7 @@ fn find_unique_or_throw_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> O
 
 /// Builds a find first item field for given model.
 fn find_first_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
-    let args = arguments::relation_to_many_selection_arguments(ctx, model, true);
+    let args = arguments::relation_to_many_selection_arguments(ctx, model.clone(), true);
     let field_name = format!("findFirst{}", model.name());
 
     field(
@@ -137,15 +137,16 @@ fn plain_aggregation_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Outp
 }
 
 /// Builds a "group by" aggregation query field (e.g. "groupByUser") for given model.
-fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
+fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     field(
         format!("groupBy{}", model.name()),
-        arguments::group_by_arguments(ctx, model),
+        arguments::group_by_arguments(ctx, &model),
         OutputType::list(OutputType::object(aggregation::group_by::group_by_output_object_type(
-            ctx, model,
+            ctx,
+            model.clone(),
         ))),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::GroupBy,
         }),
     )

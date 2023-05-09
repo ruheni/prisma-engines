@@ -138,8 +138,9 @@ pub(crate) fn where_unique_object_type<'a>(ctx: BuilderContext<'a>, model: Model
         input_object.require_exactly_one_field();
     }
 
-    input_object.fields = Box::new(|| {
+    input_object.fields = Box::new(move || {
         let mut fields: Vec<InputField<'_>> = unique_fields
+            .clone()
             .into_iter()
             .map(|f| {
                 let sf = f.as_scalar().unwrap();
@@ -152,6 +153,7 @@ pub(crate) fn where_unique_object_type<'a>(ctx: BuilderContext<'a>, model: Model
 
         // @@unique compound fields.
         let compound_unique_fields: Vec<InputField<'_>> = compound_uniques
+            .clone()
             .into_iter()
             .map(|(name, typ)| simple_input_field(name, InputType::object(typ), None).optional())
             .collect();
@@ -227,7 +229,7 @@ fn compound_field_unique_object_type<'a>(
 
 /// Object used for full composite equality, e.g. `{ field: "value", field2: 123 } == { field: "value" }`.
 /// If the composite is a list, only lists are allowed for comparison, no shorthands are used.
-pub(crate) fn composite_equality_object<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
+pub(crate) fn composite_equality_object<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(format!("{}ObjectEqualityInput", cf.typ().name()));
 
     let input_object = init_input_object_type(ident);

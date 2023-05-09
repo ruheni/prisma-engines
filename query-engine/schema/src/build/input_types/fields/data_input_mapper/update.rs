@@ -69,32 +69,30 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
 
     fn map_scalar_list<'a>(&self, ctx: BuilderContext<'a>, sf: ScalarFieldRef) -> InputField<'a> {
         let list_input_type = map_scalar_input_type(ctx, &sf.type_identifier(), sf.is_list());
+        let cloned_list_input_type = list_input_type.clone();
         let ident = Identifier::new_prisma(IdentifierType::ScalarListUpdateInput(sf.clone()));
+        let type_identifier = sf.type_identifier();
 
-        let input_object = {
-            let mut input_object = input_object_type(
-                ident,
-                Box::new(move || {
-                    let mut object_fields =
-                        vec![simple_input_field(operations::SET, list_input_type.clone(), None).optional()];
+        let mut input_object = input_object_type(
+            ident,
+            Box::new(move || {
+                let mut object_fields =
+                    vec![simple_input_field(operations::SET, list_input_type.clone(), None).optional()];
 
-                    // Todo this capability looks wrong to me.
-                    if ctx.has_capability(ConnectorCapability::EnumArrayPush) {
-                        let map_scalar_type = map_scalar_input_type(ctx, &sf.type_identifier(), false);
-                        object_fields.push(
-                            input_field(operations::PUSH, vec![map_scalar_type, list_input_type.clone()], None)
-                                .optional(),
-                        )
-                    }
-                    object_fields
-                }),
-            );
-            input_object.require_exactly_one_field();
-            input_object
-        };
+                // Todo this capability looks wrong to me.
+                if ctx.has_capability(ConnectorCapability::EnumArrayPush) {
+                    let map_scalar_type = map_scalar_input_type(ctx, &type_identifier, false);
+                    object_fields.push(
+                        input_field(operations::PUSH, vec![map_scalar_type, list_input_type.clone()], None).optional(),
+                    )
+                }
+                object_fields
+            }),
+        );
+        input_object.require_exactly_one_field();
 
         let input_type = InputType::object(input_object);
-        input_field(sf.name(), vec![input_type, list_input_type], None).optional()
+        input_field(sf.name().to_owned(), vec![input_type, cloned_list_input_type], None).optional()
     }
 
     fn map_relation<'a>(&self, ctx: BuilderContext<'a>, rf: RelationFieldRef) -> InputField<'a> {
@@ -103,13 +101,14 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
             rf.related_field(),
             self.unchecked,
         ));
+        let rf_name = rf.name().to_owned();
 
-        let input_object = init_input_object_type(ident.clone());
-        input_object.fields = Box::new(|| {
+        let mut input_object = init_input_object_type(ident.clone());
+        input_object.fields = Box::new(move || {
             let mut fields = vec![];
 
             if rf.related_model().supports_create_operation() {
-                fields.push(input_fields::nested_create_one_input_field(ctx, rf));
+                fields.push(input_fields::nested_create_one_input_field(ctx, rf.clone()));
 
                 append_opt(
                     &mut fields,
@@ -134,7 +133,7 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
             fields
         });
 
-        simple_input_field(rf.name(), InputType::object(input_object), None).optional()
+        simple_input_field(rf_name, InputType::object(input_object), None).optional()
     }
 
     fn map_composite<'a>(&self, ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputField<'a> {
@@ -142,7 +141,7 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
         let shorthand_type = InputType::Object(create::composite_create_object_type(ctx, cf.clone()));
 
         // Operation envelope object.
-        let envelope_type = InputType::Object(composite_update_envelope_object_type(ctx, &cf));
+        let envelope_type = InputType::Object(composite_update_envelope_object_type(ctx, cf.clone()));
 
         let mut input_types = vec![envelope_type, shorthand_type.clone()];
 
@@ -150,7 +149,7 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
             input_types.push(InputType::list(shorthand_type));
         }
 
-        input_field(cf.name(), input_types, None)
+        input_field(cf.name().to_owned(), input_types, None)
             .nullable_if(cf.is_optional() && !cf.is_list())
             .optional()
     }
@@ -169,7 +168,7 @@ fn update_operations_object_type<'a>(
 
     let mut obj = init_input_object_type(ident);
     obj.require_exactly_one_field();
-    obj.fields = Box::new(|| {
+    obj.fields = Box::new(move || {
         let typ = map_scalar_input_type_for_field(ctx, &sf);
         let mut fields = vec![simple_input_field(operations::SET, typ.clone(), None)
             .optional()
@@ -200,24 +199,21 @@ fn update_operations_object_type<'a>(
 ///   ... more ops ...
 /// }
 /// ```
-fn composite_update_envelope_object_type<'a>(
-    ctx: BuilderContext<'a>,
-    cf: &'a CompositeFieldRef,
-) -> InputObjectType<'a> {
+fn composite_update_envelope_object_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeUpdateEnvelopeInput(cf.typ(), cf.arity()));
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
     input_object.set_tag(ObjectTag::CompositeEnvelope);
-    input_object.fields = Box::new(|| {
-        let mut fields = vec![composite_set_update_input_field(ctx, cf)];
+    input_object.fields = Box::new(move || {
+        let mut fields = vec![composite_set_update_input_field(ctx, &cf)];
 
-        append_opt(&mut fields, composite_update_input_field(ctx, cf));
-        append_opt(&mut fields, composite_push_update_input_field(ctx, cf));
-        append_opt(&mut fields, composite_upsert_update_input_field(ctx, cf));
-        append_opt(&mut fields, composite_update_many_update_input_field(ctx, cf));
-        append_opt(&mut fields, composite_delete_many_update_input_field(ctx, cf));
-        append_opt(&mut fields, composite_unset_update_input_field(ctx, cf));
+        append_opt(&mut fields, composite_update_input_field(ctx, cf.clone()));
+        append_opt(&mut fields, composite_push_update_input_field(ctx, &cf));
+        append_opt(&mut fields, composite_upsert_update_input_field(ctx, cf.clone()));
+        append_opt(&mut fields, composite_update_many_update_input_field(ctx, cf.clone()));
+        append_opt(&mut fields, composite_delete_many_update_input_field(ctx, cf.clone()));
+        append_opt(&mut fields, composite_unset_update_input_field(ctx, &cf));
 
         fields
     });
@@ -225,12 +221,12 @@ fn composite_update_envelope_object_type<'a>(
 }
 
 /// Builds the `update` input object type. Should be used in the envelope type.
-fn composite_update_object_type<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
+fn composite_update_object_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeUpdateInput(cf.typ()));
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_min_fields(1);
-    input_object.fields = Box::new(|| {
+    input_object.fields = Box::new(move || {
         let mapper = UpdateDataInputFieldMapper::new_checked();
         let fields = cf.typ().fields().collect::<Vec<_>>();
         mapper.map_all(ctx, fields)
@@ -239,7 +235,7 @@ fn composite_update_object_type<'a>(ctx: BuilderContext<'a>, cf: &CompositeField
 }
 
 // Builds an `update` input field. Should only be used in the envelope type.
-fn composite_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> Option<InputField<'a>> {
+fn composite_update_input_field<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> Option<InputField<'a>> {
     if cf.is_required() {
         let update_object_type = composite_update_object_type(ctx, cf);
 
@@ -250,10 +246,7 @@ fn composite_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFi
 }
 
 // Builds an `unset` input field. Should only be used in the envelope type.
-fn composite_unset_update_input_field<'a>(
-    ctx: BuilderContext<'a>,
-    cf: &'a CompositeFieldRef,
-) -> Option<InputField<'a>> {
+fn composite_unset_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> Option<InputField<'a>> {
     if cf.is_optional() {
         Some(simple_input_field(operations::UNSET, InputType::boolean(), None).optional())
     } else {
@@ -262,7 +255,7 @@ fn composite_unset_update_input_field<'a>(
 }
 
 // Builds an `set` input field. Should only be used in the envelope type.
-fn composite_set_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputField<'a> {
+fn composite_set_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> InputField<'a> {
     let set_object_type = InputType::Object(create::composite_create_object_type(ctx, cf.clone()));
 
     let mut input_types = vec![set_object_type.clone()];
@@ -277,7 +270,7 @@ fn composite_set_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &'a Composi
 }
 
 // Builds an `push` input field. Should only be used in the envelope type.
-fn composite_push_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> Option<InputField<'a>> {
+fn composite_push_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> Option<InputField<'a>> {
     if cf.is_list() {
         let set_object_type = InputType::Object(create::composite_create_object_type(ctx, cf.clone()));
         let input_types = vec![set_object_type.clone(), InputType::list(set_object_type)];
@@ -289,15 +282,15 @@ fn composite_push_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &'a Compos
 }
 
 /// Builds the `upsert` input object type. Should only be used in the envelope type.
-fn composite_upsert_object_type<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
+fn composite_upsert_object_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeUpsertObjectInput(cf.typ()));
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_tag(ObjectTag::CompositeEnvelope);
-    input_object.fields = Box::new(|| {
-        let update_object_type = composite_update_object_type(ctx, cf);
+    input_object.fields = Box::new(move || {
+        let update_object_type = composite_update_object_type(ctx, cf.clone());
         let update_field = simple_input_field(operations::UPDATE, InputType::Object(update_object_type), None);
-        let set_field = composite_set_update_input_field(ctx, cf).required();
+        let set_field = composite_set_update_input_field(ctx, &cf).required();
 
         vec![set_field, update_field]
     });
@@ -305,10 +298,7 @@ fn composite_upsert_object_type<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFi
 }
 
 // Builds an `upsert` input field. Should only be used in the envelope type.
-fn composite_upsert_update_input_field<'a>(
-    ctx: BuilderContext<'a>,
-    cf: &'a CompositeFieldRef,
-) -> Option<InputField<'a>> {
+fn composite_upsert_update_input_field<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> Option<InputField<'a>> {
     if cf.is_optional() {
         let upsert_object_type = InputType::Object(composite_upsert_object_type(ctx, cf));
 
@@ -318,16 +308,16 @@ fn composite_upsert_update_input_field<'a>(
     }
 }
 
-fn composite_update_many_object_type<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
+fn composite_update_many_object_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeUpdateManyInput(cf.typ()));
 
     let mut input_object = init_input_object_type(ident);
     input_object.set_tag(ObjectTag::CompositeEnvelope);
-    input_object.fields = Box::new(|| {
+    input_object.fields = Box::new(move || {
         let where_object_type = objects::filter_objects::where_object_type(ctx, cf.typ());
         let where_field = simple_input_field(args::WHERE, InputType::object(where_object_type), None);
 
-        let update_object_type = composite_update_object_type(ctx, cf);
+        let update_object_type = composite_update_object_type(ctx, cf.clone());
         let data_field = simple_input_field(args::DATA, InputType::Object(update_object_type), None);
 
         vec![where_field, data_field]
@@ -336,12 +326,12 @@ fn composite_update_many_object_type<'a>(ctx: BuilderContext<'a>, cf: &'a Compos
     input_object
 }
 
-fn composite_delete_many_object_type<'a>(ctx: BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
+fn composite_delete_many_object_type<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CompositeDeleteManyInput(cf.typ()));
 
     let mut input_object = init_input_object_type(ident);
     input_object.set_tag(ObjectTag::CompositeEnvelope);
-    input_object.fields = Box::new(|| {
+    input_object.fields = Box::new(move || {
         let where_object_type = objects::filter_objects::where_object_type(ctx, cf.typ());
         let where_field = simple_input_field(args::WHERE, InputType::object(where_object_type), None);
 
@@ -353,7 +343,7 @@ fn composite_delete_many_object_type<'a>(ctx: BuilderContext<'a>, cf: &'a Compos
 // Builds an `updateMany` input field. Should only be used in the envelope type.
 fn composite_update_many_update_input_field<'a>(
     ctx: BuilderContext<'a>,
-    cf: &CompositeFieldRef,
+    cf: CompositeFieldRef,
 ) -> Option<InputField<'a>> {
     if cf.is_list() {
         let update_many = InputType::Object(composite_update_many_object_type(ctx, cf));
@@ -367,7 +357,7 @@ fn composite_update_many_update_input_field<'a>(
 // Builds a `deleteMany` input field. Should only be used in the envelope type.
 fn composite_delete_many_update_input_field<'a>(
     ctx: BuilderContext<'a>,
-    cf: &'a CompositeFieldRef,
+    cf: CompositeFieldRef,
 ) -> Option<InputField<'a>> {
     if cf.is_list() {
         let delete_many = InputType::Object(composite_delete_many_object_type(ctx, cf));

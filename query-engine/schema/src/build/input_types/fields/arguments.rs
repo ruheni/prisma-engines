@@ -159,7 +159,7 @@ pub(crate) fn order_by_argument<'a>(
     .optional()
 }
 
-pub(crate) fn group_by_arguments<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
+pub(crate) fn group_by_arguments<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> Vec<InputField<'a>> {
     let field_enum_type = InputType::Enum(model_field_enum(ctx, model));
     let filter_object = InputType::object(filter_objects::scalar_filter_object_type(ctx, model.clone(), true));
 

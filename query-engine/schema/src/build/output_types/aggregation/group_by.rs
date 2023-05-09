@@ -3,19 +3,19 @@ use constants::aggregations::*;
 use std::convert::identity;
 
 /// Builds group by aggregation object type for given model (e.g. GroupByUserOutputType).
-pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> ObjectType<'a> {
+pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> ObjectType<'a> {
     let ident = Identifier::new_prisma(format!("{}GroupByOutputType", capitalize(model.name())));
 
     ObjectType {
         identifier: ident.clone(),
         model: Some(model.id),
-        fields: Box::new(|| {
+        fields: Box::new(move || {
             // Model fields that can be grouped by value.
-            let mut object_fields = scalar_output_fields(ctx, model);
+            let mut object_fields = scalar_output_fields(ctx, &model);
 
             // Fields used in aggregations
-            let non_list_nor_json_fields = collect_non_list_nor_json_fields(&model.into());
-            let numeric_fields = collect_numeric_fields(&model.into());
+            let non_list_nor_json_fields = collect_non_list_nor_json_fields(&model.clone().into());
+            let numeric_fields = collect_numeric_fields(&model.clone().into());
 
             // Count is available on all fields.
             append_opt(
@@ -23,7 +23,7 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: &M
                 aggregation_field(
                     ctx,
                     UNDERSCORE_COUNT,
-                    model,
+                    &model,
                     model.fields().scalar(),
                     |_, _| OutputType::int(),
                     |mut obj| {
@@ -44,7 +44,7 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: &M
                 aggregation_field(
                     ctx,
                     UNDERSCORE_AVG,
-                    model,
+                    &model,
                     numeric_fields.clone(),
                     field_avg_output_type,
                     identity,
@@ -57,7 +57,7 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: &M
                 aggregation_field(
                     ctx,
                     UNDERSCORE_SUM,
-                    model,
+                    &model,
                     numeric_fields,
                     field::map_scalar_output_type_for_field,
                     identity,
@@ -70,7 +70,7 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: &M
                 aggregation_field(
                     ctx,
                     UNDERSCORE_MIN,
-                    model,
+                    &model,
                     non_list_nor_json_fields.clone(),
                     field::map_scalar_output_type_for_field,
                     identity,
@@ -83,7 +83,7 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: &M
                 aggregation_field(
                     ctx,
                     UNDERSCORE_MAX,
-                    model,
+                    &model,
                     non_list_nor_json_fields,
                     field::map_scalar_output_type_for_field,
                     identity,
@@ -102,8 +102,7 @@ fn scalar_output_fields<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> Vec<Ou
     fields
         .into_iter()
         .map(|f| {
-            field(f.name(), vec![], field::map_scalar_output_type_for_field(ctx, f), None)
-                .nullable_if(!f.is_required())
+            field(f.name(), vec![], field::map_scalar_output_type_for_field(ctx, f), None).nullable_if(!f.is_required())
         })
         .collect()
 }

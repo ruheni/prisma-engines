@@ -113,7 +113,7 @@ pub(crate) fn nested_upsert_field<'a>(
 /// Builds "deleteMany" field for nested updates (on relation fields).
 pub(crate) fn nested_delete_many_field<'a>(
     ctx: BuilderContext<'a>,
-    parent_field: &'a RelationFieldRef,
+    parent_field: &RelationFieldRef,
 ) -> Option<InputField<'a>> {
     if parent_field.is_list() {
         let input_object = filter_objects::scalar_filter_object_type(ctx, parent_field.related_model(), false);
@@ -156,7 +156,7 @@ pub(crate) fn nested_update_many_field<'a>(
 /// Builds "set" field for nested updates (on relation fields).
 pub(crate) fn nested_set_input_field<'a>(
     ctx: BuilderContext<'a>,
-    parent_field: &'a RelationFieldRef,
+    parent_field: &RelationFieldRef,
 ) -> Option<InputField<'a>> {
     if parent_field.is_list() {
         Some(where_unique_input_field(ctx, operations::SET, parent_field))
@@ -168,7 +168,7 @@ pub(crate) fn nested_set_input_field<'a>(
 /// Builds "disconnect" field for nested updates (on relation fields).
 pub(crate) fn nested_disconnect_input_field<'a>(
     ctx: BuilderContext<'a>,
-    parent_field: &'a RelationFieldRef,
+    parent_field: &RelationFieldRef,
 ) -> Option<InputField<'a>> {
     match (parent_field.is_list(), parent_field.is_required()) {
         (true, _) => Some(where_unique_input_field(ctx, operations::DISCONNECT, parent_field)),
@@ -191,7 +191,7 @@ pub(crate) fn nested_disconnect_input_field<'a>(
 /// Builds "delete" field for nested updates (on relation fields).
 pub(crate) fn nested_delete_input_field<'a>(
     ctx: BuilderContext<'a>,
-    parent_field: &'a RelationFieldRef,
+    parent_field: &RelationFieldRef,
 ) -> Option<InputField<'a>> {
     match (parent_field.is_list(), parent_field.is_required()) {
         (true, _) => Some(where_unique_input_field(ctx, operations::DELETE, parent_field)),

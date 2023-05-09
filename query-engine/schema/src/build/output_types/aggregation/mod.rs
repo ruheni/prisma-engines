@@ -86,7 +86,7 @@ where
         capitalize(suffix)
     ));
 
-    ObjectType {
+    object_mapper(ObjectType {
         identifier: ident,
         fields: Box::new(move || {
             // Non-numerical fields are always set as nullable
@@ -98,5 +98,5 @@ where
                 .collect()
         }),
         model: None,
-    }
+    })
 }

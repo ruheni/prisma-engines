@@ -5,14 +5,15 @@ use std::convert::identity;
 /// Builds plain aggregation object type for given model (e.g. AggregateUser).
 pub(crate) fn aggregation_object_type<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> ObjectType<'a> {
     let ident = Identifier::new_prisma(format!("Aggregate{}", capitalize(model.name())));
+    let model_id = model.id;
 
     ObjectType {
         identifier: ident.clone(),
-        fields: Box::new(|| {
+        fields: Box::new(move || {
             let mut object_fields = vec![];
 
-            let non_list_nor_json_fields = collect_non_list_nor_json_fields(&model.into());
-            let numeric_fields = collect_numeric_fields(&model.into());
+            let non_list_nor_json_fields = collect_non_list_nor_json_fields(&model.clone().into());
+            let numeric_fields = collect_numeric_fields(&model.clone().into());
 
             // Count is available on all fields.
             append_opt(
@@ -90,6 +91,6 @@ pub(crate) fn aggregation_object_type<'a>(ctx: BuilderContext<'a>, model: ModelR
 
             object_fields
         }),
-        model: Some(model.id),
+        model: Some(model_id),
     }
 }
