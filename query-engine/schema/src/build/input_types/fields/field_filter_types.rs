@@ -69,126 +69,119 @@ fn to_many_relation_filter_object<'a>(ctx: &mut BuilderContext<'_>, rf: &Relatio
 
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::RelationEnvelope);
-    let id = ctx.cache_input_type(ident, object);
 
-    let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
-
-    let fields = vec![
-        input_field(ctx, filters::EVERY, InputType::object(related_input_type), None).optional(),
-        input_field(ctx, filters::SOME, InputType::object(related_input_type), None).optional(),
-        input_field(ctx, filters::NONE, InputType::object(related_input_type), None).optional(),
-    ];
-
-    ctx.db[id].set_fields(fields);
-    id
+    object.fields = Box::new(|| {
+        let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
+        vec![
+            input_field(ctx, filters::EVERY, InputType::object(related_input_type), None).optional(),
+            input_field(ctx, filters::SOME, InputType::object(related_input_type), None).optional(),
+            input_field(ctx, filters::NONE, InputType::object(related_input_type), None).optional(),
+        ]
+    });
+    object
 }
 
-fn to_one_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectType<'a> {
-    // TODO: It is important to traverse the related model before going into the cache.
+fn to_one_relation_filter_object<'a>(ctx: &mut BuilderContext<'a>, rf: &RelationFieldRef) -> InputObjectType<'a> {
     // TODO: The ToOneRelationFilterInput is currently broken as it does not take nullability into account.
     // TODO: This means that the first relation field to be traversed will set the nullability for all other relation field that points to the same related model.
-    // TODO: Moving `filter_objects::where_object_type` _after_ the cache retrieval means that we're changing in which order we traverse the datamodel,
-    // TODO: potentially leading to a different ToOneRelationFilterInput.
-    // TODO: See https://github.com/prisma/prisma/issues/18585 for further info.
-    let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
     let ident = Identifier::new_prisma(IdentifierType::ToOneRelationFilterInput(rf.related_model()));
-
-    return_cached_input!(ctx, &ident);
 
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::RelationEnvelope);
-    let id = ctx.cache_input_type(ident, object);
-
-    let fields = vec![
-        input_field(ctx, filters::IS, InputType::object(related_input_type), None)
-            .optional()
-            .nullable_if(!rf.is_required(), &mut ctx.db),
-        input_field(ctx, filters::IS_NOT, InputType::object(related_input_type), None)
-            .optional()
-            .nullable_if(!rf.is_required(), &mut ctx.db),
-    ];
-
-    ctx.db[id].set_fields(fields);
-    id
+    object.fields = Box::new(|| {
+        let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
+        vec![
+            input_field(ctx, filters::IS, InputType::object(related_input_type), None)
+                .optional()
+                .nullable_if(!rf.is_required()),
+            input_field(ctx, filters::IS_NOT, InputType::object(related_input_type), None)
+                .optional()
+                .nullable_if(!rf.is_required()),
+        ]
+    });
+    object
 }
 
 /// Builds shorthand composite equality (`equals`) filter for to-one: `where: { composite_field: { ... } }` (no `equals` in between).
-fn to_one_composite_filter_shorthand_types(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputType {
+fn to_one_composite_filter_shorthand_types<'a>(
+    ctx: &mut BuilderContext<'a>,
+    cf: &'a CompositeFieldRef,
+) -> InputType<'a> {
     let equality_object_type = filter_objects::composite_equality_object(ctx, cf);
 
     InputType::object(equality_object_type)
 }
 
-fn to_one_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
+fn to_one_composite_filter_object<'a>(ctx: &mut BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToOneCompositeFilterInput(cf.typ(), cf.arity()));
-    return_cached_input!(ctx, &ident);
 
     let mut object = init_input_object_type(ident.clone());
     object.require_exactly_one_field();
     object.set_tag(ObjectTag::CompositeEnvelope);
-    let id = ctx.cache_input_type(ident, object);
 
-    let composite_where_object = filter_objects::where_object_type(ctx, cf.typ());
-    let composite_equals_object = filter_objects::composite_equality_object(ctx, cf);
+    object.fields = Box::new(|| {
+        let composite_where_object = filter_objects::where_object_type(ctx, cf.typ());
+        let composite_equals_object = filter_objects::composite_equality_object(ctx, cf);
 
-    let mut fields = vec![
-        input_field(ctx, filters::EQUALS, InputType::object(composite_equals_object), None)
-            .optional()
-            .nullable_if(!cf.is_required(), &mut ctx.db),
-        input_field(ctx, filters::IS, InputType::object(composite_where_object), None)
-            .optional()
-            .nullable_if(!cf.is_required(), &mut ctx.db),
-        input_field(ctx, filters::IS_NOT, InputType::object(composite_where_object), None)
-            .optional()
-            .nullable_if(!cf.is_required(), &mut ctx.db),
-    ];
+        let mut fields = vec![
+            input_field(ctx, filters::EQUALS, InputType::object(composite_equals_object), None)
+                .optional()
+                .nullable_if(!cf.is_required()),
+            input_field(ctx, filters::IS, InputType::object(composite_where_object), None)
+                .optional()
+                .nullable_if(!cf.is_required()),
+            input_field(ctx, filters::IS_NOT, InputType::object(composite_where_object), None)
+                .optional()
+                .nullable_if(!cf.is_required()),
+        ];
 
-    if ctx.has_capability(ConnectorCapability::UndefinedType) && cf.is_optional() {
-        fields.push(is_set_input_field(ctx));
-    }
+        if ctx.has_capability(ConnectorCapability::UndefinedType) && cf.is_optional() {
+            fields.push(is_set_input_field(ctx));
+        }
 
-    ctx.db[id].set_fields(fields);
-    id
+        fields
+    });
+    object
 }
 
-fn to_many_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeFieldRef) -> InputObjectType<'a> {
+fn to_many_composite_filter_object<'a>(ctx: &mut BuilderContext<'a>, cf: &'a CompositeFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToManyCompositeFilterInput(cf.typ()));
-    return_cached_input!(ctx, &ident);
 
-    let mut object = init_input_object_type(ident.clone());
+    let mut object = init_input_object_type(ident);
     object.require_exactly_one_field();
     object.set_tag(ObjectTag::CompositeEnvelope);
-    let id = ctx.cache_input_type(ident, object);
+    object.fields = Box::new(|| {
+        let composite_where_object = filter_objects::where_object_type(ctx, cf.typ());
+        let composite_equals_object = filter_objects::composite_equality_object(ctx, cf);
 
-    let composite_where_object = filter_objects::where_object_type(ctx, cf.typ());
-    let composite_equals_object = filter_objects::composite_equality_object(ctx, cf);
+        let mut fields = vec![
+            input_field(
+                ctx,
+                filters::EQUALS,
+                // The object (aka shorthand) syntax is only supported because the client used to expose all
+                // list input types as T | T[]. Consider removing it one day.
+                list_union_type(InputType::object(composite_equals_object), true),
+                None,
+            )
+            .optional(),
+            input_field(ctx, filters::EVERY, InputType::object(composite_where_object), None).optional(),
+            input_field(ctx, filters::SOME, InputType::object(composite_where_object), None).optional(),
+            input_field(ctx, filters::NONE, InputType::object(composite_where_object), None).optional(),
+            input_field(ctx, filters::IS_EMPTY, InputType::boolean(), None).optional(),
+        ];
 
-    let mut fields = vec![
-        input_field(
-            ctx,
-            filters::EQUALS,
-            // The object (aka shorthand) syntax is only supported because the client used to expose all
-            // list input types as T | T[]. Consider removing it one day.
-            list_union_type(InputType::object(composite_equals_object), true),
-            None,
-        )
-        .optional(),
-        input_field(ctx, filters::EVERY, InputType::object(composite_where_object), None).optional(),
-        input_field(ctx, filters::SOME, InputType::object(composite_where_object), None).optional(),
-        input_field(ctx, filters::NONE, InputType::object(composite_where_object), None).optional(),
-        input_field(ctx, filters::IS_EMPTY, InputType::boolean(), None).optional(),
-    ];
+        // TODO: Remove from required lists once we have optional lists
+        if ctx.has_capability(ConnectorCapability::UndefinedType) {
+            fields.push(is_set_input_field(ctx));
+        }
 
-    // TODO: Remove from required lists once we have optional lists
-    if ctx.has_capability(ConnectorCapability::UndefinedType) {
-        fields.push(is_set_input_field(ctx));
-    }
+        fields
+    });
 
-    ctx.db[id].set_fields(fields);
-    id
+    object
 }
 
-fn scalar_list_filter_type(ctx: &mut BuilderContext<'_>, sf: &ScalarFieldRef) -> InputObjectType<'a> {
+fn scalar_list_filter_type<'a>(ctx: &mut BuilderContext<'a>, sf: &'a ScalarFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ScalarListFilterInput(
         ctx.internal_data_model.clone().zip(sf.type_identifier()),
         sf.is_required(),

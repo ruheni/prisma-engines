@@ -41,10 +41,10 @@ pub(crate) fn nested_create_one_input_field<'a>(
 /// parent, as this would require a flip in the order of operations that we can't do with no identifiers.
 /// It also means that we can't serve implicit m:n relations, as this would require a write to the join
 /// table, but we don't have the IDs.
-pub(crate) fn nested_create_many_input_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_create_many_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     if ctx.has_capability(ConnectorCapability::CreateMany)
         && parent_field.is_list()
         && !parent_field.is_inlined_on_enclosing_model()
@@ -58,7 +58,10 @@ pub(crate) fn nested_create_many_input_field(
     }
 }
 
-fn nested_create_many_envelope(ctx: &mut BuilderContext<'_>, parent_field: &RelationFieldRef) -> InputObjectTypeId {
+fn nested_create_many_envelope<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> InputObjectType<'a> {
     let create_type = create_many::create_many_object_type(ctx, &parent_field.related_model(), Some(parent_field));
 
     let nested_ident = &ctx.db[create_type].identifier;
@@ -100,7 +103,10 @@ pub(crate) fn nested_connect_or_create_field(
 }
 
 /// Builds "upsert" field for nested updates (on relation fields).
-pub(crate) fn nested_upsert_field(ctx: &mut BuilderContext<'_>, parent_field: &RelationFieldRef) -> Option<InputField> {
+pub(crate) fn nested_upsert_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     upsert_objects::nested_upsert_input_object(ctx, parent_field).map(|input_object_type| {
         input_field(
             ctx,
@@ -113,10 +119,10 @@ pub(crate) fn nested_upsert_field(ctx: &mut BuilderContext<'_>, parent_field: &R
 }
 
 /// Builds "deleteMany" field for nested updates (on relation fields).
-pub(crate) fn nested_delete_many_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_delete_many_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     if parent_field.is_list() {
         let input_object = filter_objects::scalar_filter_object_type(ctx, &parent_field.related_model(), false);
         let input_type = InputType::object(input_object);
@@ -136,10 +142,10 @@ pub(crate) fn nested_delete_many_field(
 }
 
 /// Builds "updateMany" field for nested updates (on relation fields).
-pub(crate) fn nested_update_many_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_update_many_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     if parent_field.is_list() {
         let input_type = update_many_objects::update_many_where_combination_object(ctx, parent_field);
 
@@ -158,10 +164,10 @@ pub(crate) fn nested_update_many_field(
 }
 
 /// Builds "set" field for nested updates (on relation fields).
-pub(crate) fn nested_set_input_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_set_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     if parent_field.is_list() {
         Some(where_unique_input_field(ctx, operations::SET, parent_field))
     } else {
@@ -170,10 +176,10 @@ pub(crate) fn nested_set_input_field(
 }
 
 /// Builds "disconnect" field for nested updates (on relation fields).
-pub(crate) fn nested_disconnect_input_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_disconnect_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     match (parent_field.is_list(), parent_field.is_required()) {
         (true, _) => Some(where_unique_input_field(ctx, operations::DISCONNECT, parent_field)),
         (false, false) => {
@@ -193,10 +199,10 @@ pub(crate) fn nested_disconnect_input_field(
 }
 
 /// Builds "delete" field for nested updates (on relation fields).
-pub(crate) fn nested_delete_input_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_delete_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     match (parent_field.is_list(), parent_field.is_required()) {
         (true, _) => Some(where_unique_input_field(ctx, operations::DELETE, parent_field)),
         (false, false) => {
@@ -216,11 +222,17 @@ pub(crate) fn nested_delete_input_field(
 }
 
 /// Builds the "connect" input field for a relation.
-pub(crate) fn nested_connect_input_field(ctx: &mut BuilderContext<'_>, parent_field: &RelationFieldRef) -> InputField {
+pub(crate) fn nested_connect_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> InputField<'a> {
     where_unique_input_field(ctx, operations::CONNECT, parent_field)
 }
 
-pub(crate) fn nested_update_input_field(ctx: &mut BuilderContext<'_>, parent_field: &RelationFieldRef) -> InputField {
+pub(crate) fn nested_update_input_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> InputField<'a> {
     let mut update_shorthand_types =
         update_one_objects::update_one_input_types(ctx, &parent_field.related_model(), Some(parent_field));
 
@@ -247,7 +259,7 @@ pub(crate) fn nested_update_input_field(ctx: &mut BuilderContext<'_>, parent_fie
     input_field(ctx, operations::UPDATE, update_types, None).optional()
 }
 
-fn where_unique_input_field<T>(ctx: &mut BuilderContext<'_>, name: T, field: &RelationFieldRef) -> InputField
+fn where_unique_input_field<'a, T>(ctx: &mut BuilderContext<'a>, name: T, field: &'a RelationFieldRef) -> InputField<'a>
 where
     T: Into<String>,
 {
