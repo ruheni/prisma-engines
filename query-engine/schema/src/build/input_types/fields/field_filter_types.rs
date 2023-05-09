@@ -186,42 +186,40 @@ fn scalar_list_filter_type<'a>(ctx: &mut BuilderContext<'a>, sf: &'a ScalarField
         ctx.internal_data_model.clone().zip(sf.type_identifier()),
         sf.is_required(),
     ));
-    return_cached_input!(ctx, &ident);
 
     let mut object = init_input_object_type(ident.clone());
     object.require_exactly_one_field();
-    let id = ctx.cache_input_type(ident, object);
+    object.fields = Box::new(|| {
+        let mapped_nonlist_type = map_scalar_input_type(ctx, &sf.type_identifier(), false);
+        let mapped_list_type = InputType::list(mapped_nonlist_type.clone());
+        let mut fields: Vec<_> = equality_filters(ctx, mapped_list_type.clone(), !sf.is_required()).collect();
 
-    let mapped_nonlist_type = map_scalar_input_type(ctx, &sf.type_identifier(), false);
-    let mapped_list_type = InputType::list(mapped_nonlist_type.clone());
-    let mut fields: Vec<_> = equality_filters(ctx, mapped_list_type.clone(), !sf.is_required()).collect();
+        let mapped_nonlist_type_with_field_ref_input = mapped_nonlist_type.with_field_ref_input(ctx);
+        fields.push(
+            input_field(ctx, filters::HAS, mapped_nonlist_type_with_field_ref_input, None)
+                .optional()
+                .nullable_if(!sf.is_required()),
+        );
 
-    let mapped_nonlist_type_with_field_ref_input = mapped_nonlist_type.with_field_ref_input(ctx);
-    fields.push(
-        input_field(ctx, filters::HAS, mapped_nonlist_type_with_field_ref_input, None)
-            .optional()
-            .nullable_if(!sf.is_required(), &mut ctx.db),
-    );
-
-    let mapped_list_type_with_field_ref_input = mapped_list_type.with_field_ref_input(ctx);
-    fields.push(
-        input_field(
-            ctx,
-            filters::HAS_EVERY,
-            mapped_list_type_with_field_ref_input.clone(),
-            None,
-        )
-        .optional(),
-    );
-    fields.push(input_field(ctx, filters::HAS_SOME, mapped_list_type_with_field_ref_input, None).optional());
-    fields.push(input_field(ctx, filters::IS_EMPTY, InputType::boolean(), None).optional());
-
-    ctx.db[id].set_fields(fields);
-    id
+        let mapped_list_type_with_field_ref_input = mapped_list_type.with_field_ref_input(ctx);
+        fields.push(
+            input_field(
+                ctx,
+                filters::HAS_EVERY,
+                mapped_list_type_with_field_ref_input.clone(),
+                None,
+            )
+            .optional(),
+        );
+        fields.push(input_field(ctx, filters::HAS_SOME, mapped_list_type_with_field_ref_input, None).optional());
+        fields.push(input_field(ctx, filters::IS_EMPTY, InputType::boolean(), None).optional());
+        fields
+    });
+    object
 }
 
-fn full_scalar_filter_type(
-    ctx: &mut BuilderContext<'_>,
+fn full_scalar_filter_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     typ: &TypeIdentifier,
     native_type: Option<&NativeTypeInstance>,
     list: bool,
@@ -240,147 +238,150 @@ fn full_scalar_filter_type(
         include_aggregates,
     ));
 
-    return_cached_input!(ctx, &ident);
-
     let object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, object);
 
     let mapped_scalar_type = map_scalar_input_type(ctx, typ, list);
 
-    let mut fields: Vec<_> = match typ {
-        TypeIdentifier::String | TypeIdentifier::UUID => equality_filters(ctx, mapped_scalar_type.clone(), nullable)
-            .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))
-            .chain(alphanumeric_filters(ctx, mapped_scalar_type.clone()))
-            .chain(string_filters(ctx, type_name.as_ref(), mapped_scalar_type.clone()))
-            .chain(query_mode_field(ctx, nested))
-            .collect(),
-
-        TypeIdentifier::Int
-        | TypeIdentifier::BigInt
-        | TypeIdentifier::Float
-        | TypeIdentifier::DateTime
-        | TypeIdentifier::Decimal => equality_filters(ctx, mapped_scalar_type.clone(), nullable)
-            .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))
-            .chain(alphanumeric_filters(ctx, mapped_scalar_type.clone()))
-            .collect(),
-
-        TypeIdentifier::Json => {
-            let mut filters: Vec<InputField> =
-                json_equality_filters(ctx, mapped_scalar_type.clone(), nullable).collect();
-
-            if ctx.supports_any(&[
-                ConnectorCapability::JsonFilteringJsonPath,
-                ConnectorCapability::JsonFilteringArrayPath,
-            ]) {
-                filters.extend(json_filters(ctx));
-
-                if ctx.has_capability(ConnectorCapability::JsonFilteringAlphanumeric) {
-                    filters.extend(alphanumeric_filters(ctx, mapped_scalar_type.clone()))
-                }
+    object.fields = Box::new(|| {
+        let mut fields: Vec<_> = match typ {
+            TypeIdentifier::String | TypeIdentifier::UUID => {
+                equality_filters(ctx, mapped_scalar_type.clone(), nullable)
+                    .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))
+                    .chain(alphanumeric_filters(ctx, mapped_scalar_type.clone()))
+                    .chain(string_filters(ctx, type_name.as_ref(), mapped_scalar_type.clone()))
+                    .chain(query_mode_field(ctx, nested))
+                    .collect()
             }
 
-            filters
-        }
+            TypeIdentifier::Int
+            | TypeIdentifier::BigInt
+            | TypeIdentifier::Float
+            | TypeIdentifier::DateTime
+            | TypeIdentifier::Decimal => equality_filters(ctx, mapped_scalar_type.clone(), nullable)
+                .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))
+                .chain(alphanumeric_filters(ctx, mapped_scalar_type.clone()))
+                .collect(),
 
-        TypeIdentifier::Boolean | TypeIdentifier::Xml => {
-            equality_filters(ctx, mapped_scalar_type.clone(), nullable).collect()
-        }
+            TypeIdentifier::Json => {
+                let mut filters: Vec<InputField<'_>> =
+                    json_equality_filters(ctx, mapped_scalar_type.clone(), nullable).collect();
 
-        TypeIdentifier::Bytes | TypeIdentifier::Enum(_) => equality_filters(ctx, mapped_scalar_type.clone(), nullable)
-            .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))
-            .collect(),
+                if ctx.supports_any(&[
+                    ConnectorCapability::JsonFilteringJsonPath,
+                    ConnectorCapability::JsonFilteringArrayPath,
+                ]) {
+                    filters.extend(json_filters(ctx));
 
-        TypeIdentifier::Unsupported => unreachable!("No unsupported field should reach that path"),
-    };
+                    if ctx.has_capability(ConnectorCapability::JsonFilteringAlphanumeric) {
+                        filters.extend(alphanumeric_filters(ctx, mapped_scalar_type.clone()))
+                    }
+                }
 
-    fields.push(not_filter_field(
-        ctx,
-        typ,
-        native_type,
-        mapped_scalar_type,
-        nullable,
-        include_aggregates,
-        list,
-    ));
+                filters
+            }
 
-    if include_aggregates {
-        fields.push(aggregate_filter_field(
+            TypeIdentifier::Boolean | TypeIdentifier::Xml => {
+                equality_filters(ctx, mapped_scalar_type.clone(), nullable).collect()
+            }
+
+            TypeIdentifier::Bytes | TypeIdentifier::Enum(_) => {
+                equality_filters(ctx, mapped_scalar_type.clone(), nullable)
+                    .chain(inclusion_filters(ctx, mapped_scalar_type.clone(), nullable))
+                    .collect()
+            }
+
+            TypeIdentifier::Unsupported => unreachable!("No unsupported field should reach that path"),
+        };
+
+        fields.push(not_filter_field(
             ctx,
-            aggregations::UNDERSCORE_COUNT,
-            &TypeIdentifier::Int,
+            typ,
+            native_type,
+            mapped_scalar_type,
             nullable,
+            include_aggregates,
             list,
         ));
 
-        if typ.is_numeric() {
-            let avg_type = map_avg_type_ident(typ.clone());
+        if include_aggregates {
             fields.push(aggregate_filter_field(
                 ctx,
-                aggregations::UNDERSCORE_AVG,
-                &avg_type,
+                aggregations::UNDERSCORE_COUNT,
+                &TypeIdentifier::Int,
                 nullable,
                 list,
             ));
 
-            fields.push(aggregate_filter_field(
-                ctx,
-                aggregations::UNDERSCORE_SUM,
-                typ,
-                nullable,
-                list,
-            ));
+            if typ.is_numeric() {
+                let avg_type = map_avg_type_ident(typ.clone());
+                fields.push(aggregate_filter_field(
+                    ctx,
+                    aggregations::UNDERSCORE_AVG,
+                    &avg_type,
+                    nullable,
+                    list,
+                ));
+
+                fields.push(aggregate_filter_field(
+                    ctx,
+                    aggregations::UNDERSCORE_SUM,
+                    typ,
+                    nullable,
+                    list,
+                ));
+            }
+
+            if !list {
+                fields.push(aggregate_filter_field(
+                    ctx,
+                    aggregations::UNDERSCORE_MIN,
+                    typ,
+                    nullable,
+                    list,
+                ));
+
+                fields.push(aggregate_filter_field(
+                    ctx,
+                    aggregations::UNDERSCORE_MAX,
+                    typ,
+                    nullable,
+                    list,
+                ));
+            }
         }
 
-        if !list {
-            fields.push(aggregate_filter_field(
-                ctx,
-                aggregations::UNDERSCORE_MIN,
-                typ,
-                nullable,
-                list,
-            ));
-
-            fields.push(aggregate_filter_field(
-                ctx,
-                aggregations::UNDERSCORE_MAX,
-                typ,
-                nullable,
-                list,
-            ));
+        if ctx.has_capability(ConnectorCapability::UndefinedType) && (list || nullable) {
+            fields.push(is_set_input_field(ctx));
         }
-    }
 
-    if ctx.has_capability(ConnectorCapability::UndefinedType) && (list || nullable) {
-        fields.push(is_set_input_field(ctx));
-    }
-
-    ctx.db[id].set_fields(fields);
-    id
+        fields
+    });
+    object
 }
 
-fn is_set_input_field(ctx: &mut BuilderContext<'_>) -> InputField {
+fn is_set_input_field<'a>(ctx: &mut BuilderContext<'a>) -> InputField<'a> {
     input_field(ctx, filters::IS_SET, InputType::boolean(), None).optional()
 }
 
-fn equality_filters(
-    ctx: &mut BuilderContext<'_>,
-    mapped_type: InputType,
+fn equality_filters<'a>(
+    ctx: &mut BuilderContext<'a>,
+    mapped_type: InputType<'a>,
     nullable: bool,
-) -> impl Iterator<Item = InputField> {
+) -> impl Iterator<Item = InputField<'a>> {
     let types = mapped_type.with_field_ref_input(ctx);
 
     std::iter::once(
         input_field(ctx, filters::EQUALS, types, None)
             .optional()
-            .nullable_if(nullable, &mut ctx.db),
+            .nullable_if(nullable),
     )
 }
 
-fn json_equality_filters(
-    ctx: &mut BuilderContext<'_>,
-    mapped_type: InputType,
+fn json_equality_filters<'a>(
+    ctx: &mut BuilderContext<'a>,
+    mapped_type: InputType<'a>,
     nullable: bool,
-) -> impl Iterator<Item = InputField> {
+) -> impl Iterator<Item = InputField<'a>> {
     let field = if ctx.has_capability(ConnectorCapability::AdvancedJsonNullability) {
         let enum_type = json_null_filter_enum(ctx);
         let mut field_types = mapped_type.with_field_ref_input(ctx);
@@ -391,20 +392,20 @@ fn json_equality_filters(
         let inner = mapped_type.with_field_ref_input(ctx);
         input_field(ctx, filters::EQUALS, inner, None)
             .optional()
-            .nullable_if(nullable, &mut ctx.db)
+            .nullable_if(nullable)
     };
 
     std::iter::once(field)
 }
 
-fn inclusion_filters(
-    ctx: &mut BuilderContext<'_>,
-    mapped_type: InputType,
+fn inclusion_filters<'a>(
+    ctx: &mut BuilderContext<'a>,
+    mapped_type: InputType<'a>,
     nullable: bool,
-) -> impl Iterator<Item = InputField> {
+) -> impl Iterator<Item = InputField<'a>> {
     let input_type = InputType::list(mapped_type.clone());
 
-    let mut field_types: Vec<InputType> = if ctx.has_capability(ConnectorCapability::ScalarLists) {
+    let mut field_types: Vec<InputType<'_>> = if ctx.has_capability(ConnectorCapability::ScalarLists) {
         input_type.with_field_ref_input(ctx)
     } else {
         vec![input_type]
@@ -416,15 +417,18 @@ fn inclusion_filters(
     vec![
         input_field(ctx, filters::IN, field_types.clone(), None)
             .optional()
-            .nullable_if(nullable, &mut ctx.db),
+            .nullable_if(nullable),
         input_field(ctx, filters::NOT_IN, field_types, None)
             .optional()
-            .nullable_if(nullable, &mut ctx.db), // Kept for legacy reasons!
+            .nullable_if(nullable), // Kept for legacy reasons!
     ]
     .into_iter()
 }
 
-fn alphanumeric_filters(ctx: &mut BuilderContext<'_>, mapped_type: InputType) -> impl Iterator<Item = InputField> {
+fn alphanumeric_filters<'a>(
+    ctx: &mut BuilderContext<'a>,
+    mapped_type: InputType<'a>,
+) -> impl Iterator<Item = InputField<'a>> {
     // We disable referencing fields on alphanumeric json filters for MySQL & MariaDB because we can't make it work
     // for both database without splitting them into their own connectors.
     let field_types =
@@ -443,11 +447,11 @@ fn alphanumeric_filters(ctx: &mut BuilderContext<'_>, mapped_type: InputType) ->
     .into_iter()
 }
 
-fn string_filters(
-    ctx: &mut BuilderContext<'_>,
+fn string_filters<'a>(
+    ctx: &mut BuilderContext<'a>,
     input_object_type_name: &str,
-    mapped_type: InputType,
-) -> impl Iterator<Item = InputField> {
+    mapped_type: InputType<'a>,
+) -> impl Iterator<Item = InputField<'a>> {
     let field_types = mapped_type.clone().with_field_ref_input(ctx);
 
     let string_filters = ctx.connector.string_filters(input_object_type_name);
@@ -463,7 +467,7 @@ fn string_filters(
     string_filters.into_iter()
 }
 
-fn json_filters(ctx: &mut BuilderContext<'_>) -> impl Iterator<Item = InputField> {
+fn json_filters<'a>(ctx: &mut BuilderContext<'a>) -> impl Iterator<Item = InputField<'a>> {
     // TODO: also add json-specific "keys" filters
     // TODO: add json_type filter
     let path_type = if ctx.has_capability(ConnectorCapability::JsonFilteringJsonPath) {
@@ -489,18 +493,18 @@ fn json_filters(ctx: &mut BuilderContext<'_>) -> impl Iterator<Item = InputField
         input_field(ctx, filters::STRING_ENDS_WITH, string_with_field_ref_input, None).optional(),
         input_field(ctx, filters::ARRAY_CONTAINS, json_with_field_ref_input.clone(), None)
             .optional()
-            .nullable(&mut ctx.db),
+            .nullable(),
         input_field(ctx, filters::ARRAY_STARTS_WITH, json_with_field_ref_input.clone(), None)
             .optional()
-            .nullable(&mut ctx.db),
+            .nullable(),
         input_field(ctx, filters::ARRAY_ENDS_WITH, json_with_field_ref_input, None)
             .optional()
-            .nullable(&mut ctx.db),
+            .nullable(),
     ]
     .into_iter()
 }
 
-fn query_mode_field(ctx: &mut BuilderContext<'_>, nested: bool) -> impl Iterator<Item = InputField> {
+fn query_mode_field<'a>(ctx: &mut BuilderContext<'a>, nested: bool) -> impl Iterator<Item = InputField<'a>> {
     // Limit query mode field to the topmost filter level.
     // Only build mode field for connectors with insensitive filter support.
     let fields = if !nested && ctx.has_capability(ConnectorCapability::InsensitiveFilters) {
@@ -522,13 +526,13 @@ fn query_mode_field(ctx: &mut BuilderContext<'_>, nested: bool) -> impl Iterator
     fields.into_iter()
 }
 
-fn aggregate_filter_field(
-    ctx: &mut BuilderContext<'_>,
+fn aggregate_filter_field<'a>(
+    ctx: &mut BuilderContext<'a>,
     aggregation: &str,
-    typ: &TypeIdentifier,
+    typ: &'a TypeIdentifier,
     nullable: bool,
     list: bool,
-) -> InputField {
+) -> InputField<'a> {
     let filters = full_scalar_filter_type(ctx, typ, None, list, nullable, true, false);
     input_field(ctx, aggregation, InputType::object(filters), None).optional()
 }
@@ -541,15 +545,15 @@ fn map_avg_type_ident(typ: TypeIdentifier) -> TypeIdentifier {
 }
 
 // Shorthand `not equals` filter input field, skips the nested object filter.
-fn not_filter_field(
-    ctx: &mut BuilderContext<'_>,
-    typ: &TypeIdentifier,
-    native_type: Option<&NativeTypeInstance>,
-    mapped_scalar_type: InputType,
+fn not_filter_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    typ: &'a TypeIdentifier,
+    native_type: Option<&'a NativeTypeInstance>,
+    mapped_scalar_type: InputType<'a>,
     is_nullable: bool,
     include_aggregates: bool,
     is_list: bool,
-) -> InputField {
+) -> InputField<'a> {
     let has_adv_json = ctx.has_capability(ConnectorCapability::AdvancedJsonNullability);
 
     match typ {

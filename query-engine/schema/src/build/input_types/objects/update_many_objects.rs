@@ -20,24 +20,24 @@ pub(crate) fn checked_update_many_input_type<'a>(
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::CheckedUpdateManyInput(model.clone()));
 
-    let input_object = init_input_object_type(ident);
+    let mut input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let filtered_fields: Vec<_> = update_one_objects::filter_checked_update_fields(ctx, model, None)
+            .into_iter()
+            .filter(|field| matches!(field, ModelField::Scalar(_) | ModelField::Composite(_)))
+            .collect();
 
-    let filtered_fields: Vec<_> = update_one_objects::filter_checked_update_fields(ctx, model, None)
-        .into_iter()
-        .filter(|field| matches!(field, ModelField::Scalar(_) | ModelField::Composite(_)))
-        .collect();
-
-    let field_mapper = UpdateDataInputFieldMapper::new_checked();
-    let input_fields = field_mapper.map_all(ctx, &filtered_fields);
-    ctx.db[id].set_fields(input_fields);
+        let field_mapper = UpdateDataInputFieldMapper::new_checked();
+        field_mapper.map_all(ctx, &filtered_fields)
+    });
     input_object
 }
 
 /// Builds "<x>UncheckedUpdateManyWithout<y>MutationInput" input object type
-pub(crate) fn unchecked_update_many_input_type(
-    ctx: &mut BuilderContext<'_>,
-    model: &ModelRef,
-    parent_field: Option<&RelationFieldRef>,
+pub(crate) fn unchecked_update_many_input_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    model: &'a ModelRef,
+    parent_field: Option<&'a RelationFieldRef>,
 ) -> InputObjectType<'a> {
     // TODO: This leads to conflicting type names.
     // TODO: See https://github.com/prisma/prisma/issues/18534 for further details.
@@ -52,42 +52,39 @@ pub(crate) fn unchecked_update_many_input_type(
 
     let ident = Identifier::new_prisma(name);
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
+    let mut input_object = init_input_object_type(ident.clone());
+    input_object.fields = Box::new(|| {
+        let filtered_fields: Vec<_> = update_one_objects::filter_unchecked_update_fields(ctx, model, parent_field)
+            .into_iter()
+            .filter(|field| matches!(field, ModelField::Scalar(_) | ModelField::Composite(_)))
+            .collect();
 
-    let filtered_fields: Vec<_> = update_one_objects::filter_unchecked_update_fields(ctx, model, parent_field)
-        .into_iter()
-        .filter(|field| matches!(field, ModelField::Scalar(_) | ModelField::Composite(_)))
-        .collect();
-
-    let field_mapper = UpdateDataInputFieldMapper::new_unchecked();
-    let input_fields = field_mapper.map_all(ctx, &filtered_fields);
-    ctx.db[id].set_fields(input_fields);
-    id
+        let field_mapper = UpdateDataInputFieldMapper::new_unchecked();
+        field_mapper.map_all(ctx, &filtered_fields)
+    });
+    input_object
 }
 
 /// Builds "<x>UpdateManyWithWhereWithout<y>Input" input object type.
 /// Simple combination object of "where" and "data"
-pub(crate) fn update_many_where_combination_object(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
+pub(crate) fn update_many_where_combination_object<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::UpdateManyWhereCombinationInput(
         parent_field.related_field(),
     ));
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
+    let mut input_object = init_input_object_type(ident.clone());
+    input_object.fields = Box::new(|| {
+        let related_model = parent_field.related_model();
+        let where_input_object = filter_objects::scalar_filter_object_type(ctx, &related_model, false);
+        let update_types = update_many_input_types(ctx, &related_model, Some(parent_field));
 
-    let related_model = parent_field.related_model();
-    let where_input_object = filter_objects::scalar_filter_object_type(ctx, &related_model, false);
-    let update_types = update_many_input_types(ctx, &related_model, Some(parent_field));
-
-    let fields = vec![
-        input_field(ctx, args::WHERE, InputType::object(where_input_object), None),
-        input_field(ctx, args::DATA, update_types, None),
-    ];
-
-    ctx.db[id].set_fields(fields);
-    id
+        vec![
+            input_field(ctx, args::WHERE, InputType::object(where_input_object), None),
+            input_field(ctx, args::DATA, update_types, None),
+        ]
+    });
+    input_object
 }

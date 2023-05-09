@@ -61,7 +61,7 @@ pub(crate) fn upsert_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &ModelRe
 }
 
 /// Builds "where" and "data" arguments intended for the update many field.
-pub(crate) fn update_many_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Vec<InputField> {
+pub(crate) fn update_many_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
     let update_many_types = update_many_objects::update_many_input_types(ctx, model, None);
     let where_arg = where_argument(ctx, model);
 
@@ -69,14 +69,14 @@ pub(crate) fn update_many_arguments(ctx: &mut BuilderContext<'_>, model: &ModelR
 }
 
 /// Builds "where" argument intended for the delete many field.
-pub(crate) fn delete_many_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Vec<InputField> {
+pub(crate) fn delete_many_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
     let where_arg = where_argument(ctx, model);
 
     vec![where_arg]
 }
 
 /// Builds "many records where" arguments based on the given model and field.
-pub(crate) fn many_records_output_field_arguments(ctx: &mut BuilderContext<'_>, field: &ModelField) -> Vec<InputField> {
+pub(crate) fn many_records_output_field_arguments<'a>(ctx: &mut BuilderContext<'a>, field: &'a ModelField) -> Vec<InputField<'a>> {
     match field {
         ModelField::Scalar(_) => vec![],
 
@@ -102,11 +102,11 @@ pub(crate) fn many_records_output_field_arguments(ctx: &mut BuilderContext<'_>, 
 }
 
 /// Builds "many records where" arguments for to-many relation selection sets.
-pub(crate) fn relation_to_many_selection_arguments(
-    ctx: &mut BuilderContext<'_>,
-    model: &ModelRef,
+pub(crate) fn relation_to_many_selection_arguments<'a>(
+    ctx: &mut BuilderContext<'a>,
+    model: &'a ModelRef,
     include_distinct: bool,
-) -> Vec<InputField> {
+) -> Vec<InputField<'a>> {
     let unique_input_type = InputType::object(filter_objects::where_unique_object_type(ctx, model));
     let order_by_options = OrderByOptions {
         include_relations: true,
@@ -131,21 +131,21 @@ pub(crate) fn relation_to_many_selection_arguments(
 }
 
 /// Builds "many records where" arguments for to-many relation selection sets.
-pub(crate) fn relation_to_one_selection_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Vec<InputField> {
+pub(crate) fn relation_to_one_selection_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
     vec![where_argument(ctx, model)]
 }
 
 /// Builds "many composite where" arguments for to-many composite selection sets.
-pub(crate) fn composite_selection_arguments(_ctx: &mut BuilderContext<'_>, _cf: &CompositeFieldRef) -> Vec<InputField> {
+pub(crate) fn composite_selection_arguments<'a>(_ctx: &mut BuilderContext<'a>, _cf: &'a CompositeFieldRef) -> Vec<InputField<'a>> {
     vec![]
 }
 
 // Builds "orderBy" argument.
-pub(crate) fn order_by_argument(
-    ctx: &mut BuilderContext<'_>,
-    container: &ParentContainer,
-    options: &OrderByOptions,
-) -> InputField {
+pub(crate) fn order_by_argument<'a>(
+    ctx: &mut BuilderContext<'a>,
+    container: &'a ParentContainer,
+    options: &'a OrderByOptions,
+) -> InputField<'a> {
     let order_object_type = InputType::object(order_by_objects::order_by_object_type(ctx, container, options));
 
     input_field(
@@ -157,7 +157,7 @@ pub(crate) fn order_by_argument(
     .optional()
 }
 
-pub(crate) fn group_by_arguments(ctx: &mut BuilderContext<'_>, model: &ModelRef) -> Vec<InputField> {
+pub(crate) fn group_by_arguments<'a>(ctx: &mut BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
     let field_enum_type = InputType::Enum(model_field_enum(ctx, model));
     let filter_object = InputType::object(filter_objects::scalar_filter_object_type(ctx, model, true));
 

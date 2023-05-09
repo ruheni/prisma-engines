@@ -45,25 +45,7 @@ pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
 
 // implementation note: these need to be in the same function, because these vecs interact: the create inputs will enqueue update inputs, and vice versa.
 fn create_nested_inputs(ctx: &mut BuilderContext<'_>) {
-    let mut nested_create_inputs_queue = std::mem::take(&mut ctx.nested_create_inputs_queue);
-    let mut nested_update_inputs_queue = std::mem::take(&mut ctx.nested_update_inputs_queue);
-
-    while !(nested_create_inputs_queue.is_empty() && nested_update_inputs_queue.is_empty()) {
-        // Create inputs.
-        for (input_object, rf) in nested_create_inputs_queue.drain(..) {
-            let mut fields = vec![];
-
-            if rf.related_model().supports_create_operation() {
-                fields.push(input_fields::nested_create_one_input_field(ctx, &rf));
-
-                append_opt(&mut fields, input_fields::nested_connect_or_create_field(ctx, &rf));
-                append_opt(&mut fields, input_fields::nested_create_many_input_field(ctx, &rf));
-            }
-
-            fields.push(input_fields::nested_connect_input_field(ctx, &rf));
-            ctx.db[input_object].set_fields(fields);
-        }
-
+    while !nested_update_inputs_queue.is_empty() {
         // Update inputs.
         for (input_object, rf) in nested_update_inputs_queue.drain(..) {
             let mut fields = vec![];
@@ -88,9 +70,6 @@ fn create_nested_inputs(ctx: &mut BuilderContext<'_>) {
 
             ctx.db[input_object].set_fields(fields);
         }
-
-        std::mem::swap(&mut nested_create_inputs_queue, &mut ctx.nested_create_inputs_queue);
-        std::mem::swap(&mut nested_update_inputs_queue, &mut ctx.nested_update_inputs_queue);
     }
 }
 

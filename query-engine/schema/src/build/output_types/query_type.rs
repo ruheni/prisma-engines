@@ -2,7 +2,7 @@ use super::*;
 use input_types::fields::arguments;
 
 /// Builds the root `Query` type.
-pub(crate) fn build(ctx: &mut BuilderContext<'_>) -> OutputObjectTypeId {
+pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
     let fields: Vec<_> = ctx
         .internal_data_model
         .models()

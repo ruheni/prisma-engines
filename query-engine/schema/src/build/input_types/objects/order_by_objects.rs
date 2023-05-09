@@ -35,11 +35,11 @@ impl OrderByOptions {
 }
 
 /// Builds "<Container>OrderBy<Suffixes>Input" object types.
-pub(crate) fn order_by_object_type(
-    ctx: &mut BuilderContext<'_>,
-    container: &ParentContainer,
-    options: &OrderByOptions,
-) -> InputObjectTypeId {
+pub(crate) fn order_by_object_type<'a>(
+    ctx: &mut BuilderContext<'a>,
+    container: &'a ParentContainer,
+    options: &'a OrderByOptions,
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::OrderByInput(
         container.clone(),
         options.type_suffix().to_owned(),
@@ -47,31 +47,31 @@ pub(crate) fn order_by_object_type(
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_at_most_one_field();
-    let id = ctx.cache_input_type(ident, input_object);
+    input_object.fields = Box::new(|| {
+        // Basic orderBy fields.
+        let mut fields: Vec<_> = container
+            .fields()
+            .iter()
+            .filter_map(|field| match field {
+                // We exclude composites if we're in aggregations land (groupBy).
+                ModelField::Composite(_) if options.include_scalar_aggregations => None,
+                _ => orderby_field_mapper(field, ctx, options),
+            })
+            .collect();
 
-    // Basic orderBy fields.
-    let mut fields: Vec<_> = container
-        .fields()
-        .iter()
-        .filter_map(|field| match field {
-            // We exclude composites if we're in aggregations land (groupBy).
-            ModelField::Composite(_) if options.include_scalar_aggregations => None,
-            _ => orderby_field_mapper(field, ctx, options),
-        })
-        .collect();
+        if options.include_scalar_aggregations {
+            // orderBy Fields for aggregation orderings.
+            fields.extend(compute_scalar_aggregation_fields(ctx, container));
+        }
 
-    if options.include_scalar_aggregations {
-        // orderBy Fields for aggregation orderings.
-        fields.extend(compute_scalar_aggregation_fields(ctx, container));
-    }
+        if options.include_full_text_search {
+            // orderBy Fields for full text searches.
+            append_opt(&mut fields, order_by_field_text_search(ctx, container))
+        }
 
-    if options.include_full_text_search {
-        // orderBy Fields for full text searches.
-        append_opt(&mut fields, order_by_field_text_search(ctx, container))
-    }
-
-    ctx.db[id].set_fields(fields);
-    id
+        fields
+    });
+    input_object
 }
 
 fn compute_scalar_aggregation_fields<'a>(
@@ -86,30 +86,24 @@ fn compute_scalar_aggregation_fields<'a>(
         .flat_map(ModelField::into_scalar)
         .collect::<Vec<ScalarFieldRef>>();
 
-    let fields = vec![
-        order_by_field_aggregate(aggregations::UNDERSCORE_COUNT, "Count", ctx, container, scalar_fields),
-        order_by_field_aggregate(
-            aggregations::UNDERSCORE_AVG,
-            "Avg",
-            ctx,
-            container,
-            numeric_fields.clone(),
-        ),
+    let fields = [
+        order_by_field_aggregate(aggregations::UNDERSCORE_COUNT, "Count", ctx, container, &scalar_fields),
+        order_by_field_aggregate(aggregations::UNDERSCORE_AVG, "Avg", ctx, container, &numeric_fields),
         order_by_field_aggregate(
             aggregations::UNDERSCORE_MAX,
             "Max",
             ctx,
             container,
-            non_list_nor_json_fields.clone(),
+            &non_list_nor_json_fields,
         ),
         order_by_field_aggregate(
             aggregations::UNDERSCORE_MIN,
             "Min",
             ctx,
             container,
-            non_list_nor_json_fields,
+            &non_list_nor_json_fields,
         ),
-        order_by_field_aggregate(aggregations::UNDERSCORE_SUM, "Sum", ctx, container, numeric_fields),
+        order_by_field_aggregate(aggregations::UNDERSCORE_SUM, "Sum", ctx, container, &numeric_fields),
     ];
 
     fields.into_iter().flatten().collect()
@@ -176,21 +170,20 @@ fn orderby_field_mapper<'a>(
     }
 }
 
-fn sort_nulls_object_type(ctx: &mut BuilderContext<'_>) -> InputObjectTypeId {
+fn sort_nulls_object_type<'a>(ctx: &mut BuilderContext<'a>) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma("SortOrderInput");
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
-    let sort_order_enum_type = sort_order_enum(ctx);
-    let nulls_order_enum_type = nulls_order_enum(ctx);
+    let mut input_object = init_input_object_type(ident.clone());
+    input_object.fields = Box::new(|| {
+        let sort_order_enum_type = sort_order_enum(ctx);
+        let nulls_order_enum_type = nulls_order_enum(ctx);
 
-    let fields = vec![
-        input_field(ctx, ordering::SORT, InputType::Enum(sort_order_enum_type), None),
-        input_field(ctx, ordering::NULLS, InputType::Enum(nulls_order_enum_type), None).optional(),
-    ];
-
-    ctx.db[id].set_fields(fields);
-    id
+        vec![
+            input_field(ctx, ordering::SORT, InputType::Enum(sort_order_enum_type), None),
+            input_field(ctx, ordering::NULLS, InputType::Enum(nulls_order_enum_type), None).optional(),
+        ]
+    });
+    input_object
 }
 
 fn order_by_field_aggregate<'a>(
@@ -198,7 +191,7 @@ fn order_by_field_aggregate<'a>(
     suffix: &str,
     ctx: &mut BuilderContext<'a>,
     container: &ParentContainer,
-    scalar_fields: Vec<ScalarFieldRef>,
+    scalar_fields: &[ScalarFieldRef],
 ) -> Option<InputField<'a>> {
     if scalar_fields.is_empty() {
         None
@@ -208,12 +201,12 @@ fn order_by_field_aggregate<'a>(
     }
 }
 
-fn order_by_object_type_aggregate(
+fn order_by_object_type_aggregate<'a>(
     suffix: &str,
-    ctx: &mut BuilderContext<'_>,
-    container: &ParentContainer,
-    scalar_fields: Vec<ScalarFieldRef>,
-) -> InputObjectTypeId {
+    ctx: &mut BuilderContext<'a>,
+    container: &'a ParentContainer,
+    scalar_fields: &[ScalarFieldRef],
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::OrderByAggregateInput(
         container.clone(),
         suffix.to_string(),
@@ -221,31 +214,29 @@ fn order_by_object_type_aggregate(
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
-    let id = ctx.cache_input_type(ident, input_object);
+    input_object.fields = Box::new(|| {
+        let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
+        scalar_fields
+            .iter()
+            .map(|sf| input_field(ctx, sf.name(), sort_order_enum.clone(), None).optional())
+            .collect()
+    });
 
-    let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
-    let fields = scalar_fields
-        .iter()
-        .map(|sf| input_field(ctx, sf.name(), sort_order_enum.clone(), None).optional())
-        .collect();
-
-    ctx.db[id].set_fields(fields);
-    id
+    input_object
 }
 
-fn order_by_to_many_aggregate_object_type(
-    ctx: &mut BuilderContext<'_>,
+fn order_by_to_many_aggregate_object_type<'a>(
+    ctx: &mut BuilderContext<'a>,
     container: &ParentContainer,
-) -> InputObjectTypeId {
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::OrderByToManyAggregateInput(container.clone()));
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
-    let fields = vec![input_field(ctx, aggregations::UNDERSCORE_COUNT, sort_order_enum, None).optional()];
-    ctx.db[id].set_fields(fields);
-    id
+    input_object.fields = Box::new(|| {
+        let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
+        vec![input_field(ctx, aggregations::UNDERSCORE_COUNT, sort_order_enum, None).optional()]
+    });
+    input_object
 }
 
 fn order_by_field_text_search<'a>(ctx: &mut BuilderContext<'a>, container: &ParentContainer) -> Option<InputField<'a>> {
@@ -261,39 +252,37 @@ fn order_by_field_text_search<'a>(ctx: &mut BuilderContext<'a>, container: &Pare
     if scalar_fields.is_empty() {
         None
     } else {
-        let ty = InputType::object(order_by_object_type_text_search(ctx, container, scalar_fields));
+        let ty = InputType::object(order_by_object_type_text_search(ctx, container, &scalar_fields));
         Some(input_field(ctx, ordering::UNDERSCORE_RELEVANCE, ty, None).optional())
     }
 }
 
-fn order_by_object_type_text_search(
-    ctx: &mut BuilderContext<'_>,
-    container: &ParentContainer,
-    scalar_fields: Vec<ScalarFieldRef>,
-) -> InputObjectTypeId {
+fn order_by_object_type_text_search<'a>(
+    ctx: &mut BuilderContext<'a>,
+    container: &'a ParentContainer,
+    scalar_fields: &[ScalarFieldRef],
+) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceInput(container.clone()));
 
-    let input_object = init_input_object_type(ident);
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let fields_enum_type = InputType::enum_type(order_by_relevance_enum(
-        ctx,
-        container,
-        scalar_fields.iter().map(|sf| sf.name().to_owned()).collect(),
-    ));
-    let sort_order_enum = sort_order_enum(ctx);
-
-    let fields = vec![
-        input_field(
+    let mut input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let fields_enum_type = InputType::enum_type(order_by_relevance_enum(
             ctx,
-            ordering::FIELDS,
-            vec![fields_enum_type.clone(), InputType::list(fields_enum_type)],
-            None,
-        ),
-        input_field(ctx, ordering::SORT, InputType::Enum(sort_order_enum), None),
-        input_field(ctx, ordering::SEARCH, InputType::string(), None),
-    ];
+            container,
+            scalar_fields.iter().map(|sf| sf.name().to_owned()).collect(),
+        ));
+        let sort_order_enum = sort_order_enum(ctx);
 
-    ctx.db[id].set_fields(fields);
-    id
+        vec![
+            input_field(
+                ctx,
+                ordering::FIELDS,
+                vec![fields_enum_type.clone(), InputType::list(fields_enum_type)],
+                None,
+            ),
+            input_field(ctx, ordering::SORT, InputType::Enum(sort_order_enum), None),
+            input_field(ctx, ordering::SEARCH, InputType::string(), None),
+        ]
+    });
+    input_object
 }

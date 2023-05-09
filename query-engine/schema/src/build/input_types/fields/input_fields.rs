@@ -63,34 +63,28 @@ fn nested_create_many_envelope<'a>(
     parent_field: &'a RelationFieldRef,
 ) -> InputObjectType<'a> {
     let create_type = create_many::create_many_object_type(ctx, &parent_field.related_model(), Some(parent_field));
-
-    let nested_ident = &ctx.db[create_type].identifier;
-    let name = format!("{}Envelope", nested_ident.name());
-
+    let name = format!("{}Envelope", create_type.identifier.name());
     let ident = Identifier::new_prisma(name);
-    return_cached_input!(ctx, &ident);
+    let input_object = init_input_object_type(ident);
+    input_object.fields = Box::new(|| {
+        let create_many_type = InputType::object(create_type);
+        let data_arg = input_field(ctx, args::DATA, list_union_type(create_many_type, true), None);
 
-    let input_object = init_input_object_type(ident.clone());
-    let id = ctx.cache_input_type(ident, input_object);
-    let create_many_type = InputType::object(create_type);
-    let data_arg = input_field(ctx, args::DATA, list_union_type(create_many_type, true), None);
+        if ctx.has_capability(ConnectorCapability::CreateSkipDuplicates) {
+            let skip_arg = input_field(ctx, args::SKIP_DUPLICATES, InputType::boolean(), None).optional();
 
-    let fields = if ctx.has_capability(ConnectorCapability::CreateSkipDuplicates) {
-        let skip_arg = input_field(ctx, args::SKIP_DUPLICATES, InputType::boolean(), None).optional();
-
-        vec![data_arg, skip_arg]
-    } else {
-        vec![data_arg]
-    };
-
-    ctx.db[id].set_fields(fields);
-    id
+            vec![data_arg, skip_arg]
+        } else {
+            vec![data_arg]
+        }
+    });
+    input_object
 }
 
-pub(crate) fn nested_connect_or_create_field(
-    ctx: &mut BuilderContext<'_>,
-    parent_field: &RelationFieldRef,
-) -> Option<InputField> {
+pub(crate) fn nested_connect_or_create_field<'a>(
+    ctx: &mut BuilderContext<'a>,
+    parent_field: &'a RelationFieldRef,
+) -> Option<InputField<'a>> {
     connect_or_create_objects::nested_connect_or_create_input_object(ctx, parent_field).map(|input_object_type| {
         input_field(
             ctx,

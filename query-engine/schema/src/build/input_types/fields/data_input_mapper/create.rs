@@ -61,18 +61,20 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             self.unchecked,
         ));
 
-        let input_object = {
-            let input_object = init_input_object_type(ident.clone());
-            let id = ctx.cache_input_type(ident, input_object);
+        let input_object = init_input_object_type(ident.clone());
+        input_object.fields = Box::new(|| {
+            let mut fields = vec![];
 
-            // Enqueue the nested create input for its fields to be
-            // created at a later point, to avoid recursing too deep
-            // (that has caused stack overflows on large schemas in
-            // the past).
-            ctx.nested_create_inputs_queue.push((id, rf.clone()));
+            if rf.related_model().supports_create_operation() {
+                fields.push(input_fields::nested_create_one_input_field(ctx, &rf));
 
-            id
-        };
+                append_opt(&mut fields, input_fields::nested_connect_or_create_field(ctx, &rf));
+                append_opt(&mut fields, input_fields::nested_create_many_input_field(ctx, &rf));
+            }
+
+            fields.push(input_fields::nested_connect_input_field(ctx, &rf));
+            fields
+        });
 
         // If all backing scalars of a relation have a default, the entire relation is optional on create, even if the relation field itself is optional.
         let all_required_scalar_fields_have_defaults = rf
@@ -133,37 +135,36 @@ fn composite_create_envelope_object_type<'a>(
     let mut input_object = init_input_object_type(ident);
     input_object.require_exactly_one_field();
     input_object.set_tag(ObjectTag::CompositeEnvelope);
-    let id = ctx.cache_input_type(ident, input_object);
+    input_object.fields = Box::new(|| {
+        let create_input = InputType::Object(composite_create_object_type(ctx, cf));
+        let mut input_types = vec![create_input.clone()];
 
-    let create_input = InputType::Object(composite_create_object_type(ctx, cf));
-    let mut input_types = vec![create_input.clone()];
+        if cf.is_list() {
+            input_types.push(InputType::list(create_input));
+        }
 
-    if cf.is_list() {
-        input_types.push(InputType::list(create_input));
-    }
+        let set_field = input_field(ctx, "set", input_types, None)
+            .nullable_if(!cf.is_required() && !cf.is_list())
+            .optional();
 
-    let set_field = input_field(ctx, "set", input_types, None)
-        .nullable_if(!cf.is_required() && !cf.is_list(), &mut ctx.db)
-        .optional();
-
-    ctx.db[id].set_fields(vec![set_field]);
-    id
+        vec![set_field]
+    });
+    input_object
 }
 
 pub(crate) fn composite_create_object_type<'a>(
     ctx: &mut BuilderContext<'a>,
-    cf: &CompositeFieldRef,
+    cf: &'a CompositeFieldRef,
 ) -> InputObjectType<'a> {
     // It's called "Create" input because it's used across multiple create-type operations, not only "set".
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateInput(cf.typ()));
 
-    let input_object = init_input_object_type(ident);
-    let id = ctx.cache_input_type(ident, input_object);
-
-    let mapper = CreateDataInputFieldMapper::new_checked();
-    let fields = cf.typ().fields().collect::<Vec<_>>();
-    let fields = mapper.map_all(ctx, &fields);
-
-    ctx.db[id].set_fields(fields);
-    id
+    input_object_type(
+        ident,
+        Box::new(|| {
+            let mapper = CreateDataInputFieldMapper::new_checked();
+            let fields = cf.typ().fields().collect::<Vec<_>>();
+            mapper.map_all(ctx, &fields)
+        }),
+    )
 }
