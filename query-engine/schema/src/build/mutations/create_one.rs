@@ -92,7 +92,7 @@ fn unchecked_create_input_type<'a>(
     ));
 
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(|| {
+    input_object.fields = Box::new(move || {
         let filtered_fields = filter_unchecked_create_fields(&model, parent_field.as_ref());
         let field_mapper = CreateDataInputFieldMapper::new_unchecked();
         field_mapper.map_all(ctx, filtered_fields)
@@ -111,7 +111,10 @@ fn filter_checked_create_fields(model: &ModelRef, parent_field: Option<RelationF
             // If the relation field `rf` is the one that was traversed to by the parent relation field `parent_field`,
             // then exclude it for checked inputs - this prevents endless nested type circles that are useless to offer as API.
             ModelField::Relation(rf) => {
-                let field_was_traversed_to = parent_field.filter(|pf| pf.related_field().id == rf.id).is_some();
+                let field_was_traversed_to = parent_field
+                    .as_ref()
+                    .filter(|pf| pf.related_field().id == rf.id)
+                    .is_some();
                 !field_was_traversed_to
             }
 

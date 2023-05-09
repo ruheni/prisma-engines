@@ -5,7 +5,7 @@ use prisma_models::{DefaultKind, PrismaValue};
 use psl::datamodel_connector::ConnectorCapability;
 
 /// Builds the root `Mutation` type.
-pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
+pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
     ObjectType {
         identifier: Identifier::new_prisma("Mutation".to_owned()),
         model: None,
@@ -16,7 +16,7 @@ pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
                 if model.supports_create_operation() {
                     fields.push(create_one(ctx, model.clone()));
 
-                    append_opt(&mut fields, upsert_item_field(ctx, model));
+                    append_opt(&mut fields, upsert_item_field(ctx, model.clone()));
                     append_opt(&mut fields, create_many(ctx, model.clone()));
                 }
 
@@ -41,14 +41,14 @@ pub(crate) fn build<'a>(ctx: &mut BuilderContext<'a>) -> ObjectType<'a> {
     }
 }
 
-fn create_execute_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
+fn create_execute_raw_field<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
     field(
         "executeRaw",
         vec![
-            input_field("query", InputType::string(), None),
+            input_field("query", vec![InputType::string()], None),
             input_field(
                 "parameters",
-                InputType::json_list(),
+                vec![InputType::json_list()],
                 Some(DefaultKind::Single(PrismaValue::String("[]".into()))),
             )
             .optional(),
@@ -61,12 +61,12 @@ fn create_execute_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a>
     )
 }
 
-fn create_query_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
+fn create_query_raw_field<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
     field(
         "queryRaw",
         vec![
-            input_field("query", InputType::string(), None),
-            input_field(
+            simple_input_field("query", InputType::string(), None),
+            simple_input_field(
                 "parameters",
                 InputType::json_list(),
                 Some(DefaultKind::Single(PrismaValue::String("[]".into()))),
@@ -81,10 +81,10 @@ fn create_query_raw_field<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
     )
 }
 
-fn create_mongodb_run_command_raw<'a>(ctx: &mut BuilderContext<'a>) -> OutputField<'a> {
+fn create_mongodb_run_command_raw<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
     field(
         "runCommandRaw",
-        vec![input_field("command", InputType::json(), None)],
+        vec![simple_input_field("command", InputType::json(), None)],
         OutputType::json(),
         Some(QueryInfo {
             tag: QueryTag::RunCommandRaw,
@@ -94,8 +94,8 @@ fn create_mongodb_run_command_raw<'a>(ctx: &mut BuilderContext<'a>) -> OutputFie
 }
 
 /// Builds a delete mutation field (e.g. deleteUser) for given model.
-fn delete_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
-    arguments::delete_one_arguments(ctx, model).map(|args| {
+fn delete_item_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
+    arguments::delete_one_arguments(ctx, model.clone()).map(|args| {
         let field_name = format!("deleteOne{}", model.name());
 
         field(
@@ -112,24 +112,24 @@ fn delete_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Optio
 }
 
 /// Builds a delete many mutation field (e.g. deleteManyUsers) for given model.
-fn delete_many_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
-    let arguments = arguments::delete_many_arguments(ctx, &model);
+fn delete_many_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let field_name = format!("deleteMany{}", model.name());
+    let arguments = arguments::delete_many_arguments(ctx, model.clone());
 
     field(
         field_name,
         arguments,
         OutputType::object(objects::affected_records_object_type()),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::DeleteMany,
         }),
     )
 }
 
 /// Builds an update mutation field (e.g. updateUser) for given model.
-fn update_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
-    arguments::update_one_arguments(ctx, model).map(|args| {
+fn update_item_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
+    arguments::update_one_arguments(ctx, model.clone()).map(|args| {
         let field_name = format!("updateOne{}", model.name());
 
         field(
@@ -146,23 +146,23 @@ fn update_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Optio
 }
 
 /// Builds an update many mutation field (e.g. updateManyUsers) for given model.
-fn update_many_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
-    let arguments = arguments::update_many_arguments(ctx, model);
+fn update_many_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> OutputField<'a> {
     let field_name = format!("updateMany{}", model.name());
+    let arguments = arguments::update_many_arguments(ctx, model.clone());
 
     field(
         field_name,
         arguments,
         OutputType::object(objects::affected_records_object_type()),
         Some(QueryInfo {
-            model: Some(model.clone()),
+            model: Some(model),
             tag: QueryTag::UpdateMany,
         }),
     )
 }
 
 /// Builds an upsert mutation field (e.g. upsertUser) for given model.
-fn upsert_item_field<'a>(ctx: &mut BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
+fn upsert_item_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Option<OutputField<'a>> {
     arguments::upsert_arguments(ctx, model.clone()).map(|args| {
         let field_name = format!("upsertOne{}", model.name());
 

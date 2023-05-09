@@ -32,7 +32,7 @@ pub(crate) fn create_many_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef
     let data_arg = input_field(args::DATA, list_union_type(create_many_type, true), None);
 
     if ctx.has_capability(ConnectorCapability::CreateSkipDuplicates) {
-        let skip_arg = input_field(args::SKIP_DUPLICATES, InputType::boolean(), None).optional();
+        let skip_arg = input_field(args::SKIP_DUPLICATES, vec![InputType::boolean()], None).optional();
 
         vec![data_arg, skip_arg]
     } else {

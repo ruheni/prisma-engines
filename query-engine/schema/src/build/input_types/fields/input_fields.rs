@@ -6,13 +6,13 @@ use psl::datamodel_connector::ConnectorCapability;
 
 pub(crate) fn filter_input_field<'a>(
     ctx: BuilderContext<'a>,
-    field: &ModelField,
+    field: ModelField,
     include_aggregates: bool,
 ) -> InputField<'a> {
-    let types = field_filter_types::get_field_filter_types(ctx, field, include_aggregates);
+    let types = field_filter_types::get_field_filter_types(ctx, field.clone(), include_aggregates);
     let nullable = !field.is_required()
         && !field.is_list()
-        && match field {
+        && match &field {
             ModelField::Scalar(sf) => sf.type_identifier() != TypeIdentifier::Json,
             _ => true,
         };
@@ -53,7 +53,7 @@ pub(crate) fn nested_create_many_input_field<'a>(
     {
         let envelope = nested_create_many_envelope(ctx, parent_field);
 
-        Some(input_field(operations::CREATE_MANY, InputType::object(envelope), None).optional())
+        Some(input_field(operations::CREATE_MANY, vec![InputType::object(envelope)], None).optional())
     } else {
         None
     }
@@ -69,7 +69,7 @@ fn nested_create_many_envelope<'a>(ctx: BuilderContext<'a>, parent_field: Relati
         let data_arg = input_field(args::DATA, list_union_type(create_many_type, true), None);
 
         if ctx.has_capability(ConnectorCapability::CreateSkipDuplicates) {
-            let skip_arg = input_field(args::SKIP_DUPLICATES, InputType::boolean(), None).optional();
+            let skip_arg = input_field(args::SKIP_DUPLICATES, vec![InputType::boolean()], None).optional();
 
             vec![data_arg, skip_arg]
         } else {

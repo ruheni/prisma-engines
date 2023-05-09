@@ -9,7 +9,7 @@ use prisma_models::{prelude::ParentContainer, CompositeFieldRef};
 pub(crate) fn where_argument<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> InputField<'a> {
     let where_object = filter_objects::where_object_type(ctx, model);
 
-    input_field(args::WHERE, InputType::object(where_object), None).optional()
+    input_field(args::WHERE.to_owned(), vec![InputType::object(where_object)], None).optional()
 }
 
 /// Builds "where" argument which input type is the where unique type of the input builder.
@@ -19,7 +19,11 @@ pub(crate) fn where_unique_argument<'a>(ctx: BuilderContext<'a>, model: ModelRef
     if input_object_type.is_empty() {
         None
     } else {
-        Some(input_field(args::WHERE, InputType::object(input_object_type), None))
+        Some(input_field(
+            args::WHERE.to_owned(),
+            vec![InputType::object(input_object_type)],
+            None,
+        ))
     }
 }
 
@@ -33,7 +37,7 @@ pub(crate) fn update_one_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef)
     where_unique_argument(ctx, model.clone()).map(|unique_arg| {
         let update_types = update_one_objects::update_one_input_types(ctx, model, None);
 
-        vec![input_field(args::DATA, update_types, None), unique_arg]
+        vec![input_field(args::DATA.to_owned(), update_types, None), unique_arg]
     })
 }
 
@@ -48,8 +52,8 @@ pub(crate) fn upsert_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> 
         } else {
             Some(vec![
                 where_unique_arg,
-                input_field(args::CREATE, create_types, None),
-                input_field(args::UPDATE, update_types, None),
+                input_field(args::CREATE.to_owned(), create_types, None),
+                input_field(args::UPDATE.to_owned(), update_types, None),
             ])
         }
     })
@@ -60,12 +64,12 @@ pub(crate) fn update_many_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef
     let update_many_types = update_many_objects::update_many_input_types(ctx, model.clone(), None);
     let where_arg = where_argument(ctx, &model);
 
-    vec![input_field(args::DATA, update_many_types, None), where_arg]
+    vec![input_field(args::DATA.to_owned(), update_many_types, None), where_arg]
 }
 
 /// Builds "where" argument intended for the delete many field.
-pub(crate) fn delete_many_arguments<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> Vec<InputField<'a>> {
-    let where_arg = where_argument(ctx, model);
+pub(crate) fn delete_many_arguments<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Vec<InputField<'a>> {
+    let where_arg = where_argument(ctx, &model);
 
     vec![where_arg]
 }
@@ -113,14 +117,14 @@ pub(crate) fn relation_to_many_selection_arguments<'a>(
     let mut args = vec![
         where_argument(ctx, &model),
         order_by_argument(ctx, model.clone().into(), order_by_options),
-        input_field(args::CURSOR, unique_input_type, None).optional(),
-        input_field(args::TAKE, InputType::int(), None).optional(),
-        input_field(args::SKIP, InputType::int(), None).optional(),
+        input_field(args::CURSOR.to_owned(), vec![unique_input_type], None).optional(),
+        input_field(args::TAKE.to_owned(), vec![InputType::int()], None).optional(),
+        input_field(args::SKIP.to_owned(), vec![InputType::int()], None).optional(),
     ];
 
     if include_distinct {
         let input_type = InputType::list(InputType::Enum(model_field_enum(ctx, &model)));
-        args.push(input_field(args::DISTINCT, input_type, None).optional());
+        args.push(input_field(args::DISTINCT.to_owned(), vec![input_type], None).optional());
     }
 
     args
@@ -148,7 +152,7 @@ pub(crate) fn order_by_argument<'a>(
     let order_object_type = InputType::object(order_by_objects::order_by_object_type(ctx, container, options));
 
     input_field(
-        args::ORDER_BY,
+        args::ORDER_BY.to_owned(),
         vec![InputType::list(order_object_type.clone()), order_object_type],
         None,
     )
@@ -167,8 +171,8 @@ pub(crate) fn group_by_arguments<'a>(ctx: BuilderContext<'a>, model: &'a ModelRe
             vec![InputType::list(field_enum_type.clone()), field_enum_type],
             None,
         ),
-        input_field(args::HAVING, filter_object, None).optional(),
-        input_field(args::TAKE, InputType::int(), None).optional(),
-        input_field(args::SKIP, InputType::int(), None).optional(),
+        input_field(args::HAVING, vec![filter_object], None).optional(),
+        input_field(args::TAKE, vec![InputType::int()], None).optional(),
+        input_field(args::SKIP, vec![InputType::int()], None).optional(),
     ]
 }

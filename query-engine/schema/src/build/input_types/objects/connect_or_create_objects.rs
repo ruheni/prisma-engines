@@ -24,7 +24,7 @@ pub(crate) fn nested_connect_or_create_input_object<'a>(
     input_object.fields = Box::new(move || {
         let create_types = create_one::create_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
         vec![
-            input_field(args::WHERE, InputType::object(where_object.clone()), None),
+            input_field(args::WHERE, vec![InputType::object(where_object.clone())], None),
             input_field(args::CREATE, create_types, None),
         ]
     });

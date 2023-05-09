@@ -6,35 +6,35 @@ use psl::datamodel_connector::ConnectorCapability;
 /// Builds filter types for the given model field.
 pub(crate) fn get_field_filter_types<'a>(
     ctx: BuilderContext<'a>,
-    field: &ModelField,
+    field: ModelField,
     include_aggregates: bool,
 ) -> Vec<InputType<'a>> {
     match field {
         ModelField::Relation(rf) if rf.is_list() => {
-            vec![InputType::object(to_many_relation_filter_object(ctx, rf))]
+            vec![InputType::object(to_many_relation_filter_object(ctx, &rf))]
         }
 
         ModelField::Relation(rf) => {
             vec![
-                InputType::object(to_one_relation_filter_object(ctx, rf)),
-                to_one_relation_filter_shorthand_types(ctx, rf),
+                InputType::object(to_one_relation_filter_object(ctx, &rf)),
+                to_one_relation_filter_shorthand_types(ctx, &rf),
             ]
         }
 
         ModelField::Composite(cf) if cf.is_list() => vec![
-            InputType::object(to_many_composite_filter_object(ctx, cf)),
-            InputType::list(to_one_composite_filter_shorthand_types(ctx, cf)),
+            InputType::object(to_many_composite_filter_object(ctx, &cf)),
+            InputType::list(to_one_composite_filter_shorthand_types(ctx, &cf)),
             // The object (aka shorthand) syntax is only supported because the client used to expose all
             // list input types as T | T[]. Consider removing it one day.
-            to_one_composite_filter_shorthand_types(ctx, cf),
+            to_one_composite_filter_shorthand_types(ctx, &cf),
         ],
 
         ModelField::Composite(cf) => vec![
-            InputType::object(to_one_composite_filter_object(ctx, cf)),
-            to_one_composite_filter_shorthand_types(ctx, cf),
+            InputType::object(to_one_composite_filter_object(ctx, &cf)),
+            to_one_composite_filter_shorthand_types(ctx, &cf),
         ],
 
-        ModelField::Scalar(sf) if field.is_list() => vec![InputType::object(scalar_list_filter_type(ctx, sf))],
+        ModelField::Scalar(sf) if field.is_list() => vec![InputType::object(scalar_list_filter_type(ctx, &sf))],
 
         ModelField::Scalar(sf) => {
             let mut types = vec![InputType::object(full_scalar_filter_type(
@@ -48,7 +48,7 @@ pub(crate) fn get_field_filter_types<'a>(
             ))];
 
             if sf.type_identifier() != TypeIdentifier::Json {
-                types.push(map_scalar_input_type_for_field(ctx, sf)); // Scalar equality shorthand
+                types.push(map_scalar_input_type_for_field(ctx, &sf)); // Scalar equality shorthand
             }
 
             types
@@ -64,7 +64,7 @@ fn to_one_relation_filter_shorthand_types<'a>(ctx: BuilderContext<'a>, rf: &Rela
     InputType::object(related_input_type)
 }
 
-fn to_many_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: &'a RelationFieldRef) -> InputObjectType<'a> {
+fn to_many_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: &RelationFieldRef) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ToManyRelationFilterInput(rf.related_model()));
 
     let mut object = init_input_object_type(ident.clone());
@@ -73,9 +73,9 @@ fn to_many_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: &'a RelationF
     object.fields = Box::new(|| {
         let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
         vec![
-            input_field(filters::EVERY, InputType::object(related_input_type), None).optional(),
-            input_field(filters::SOME, InputType::object(related_input_type), None).optional(),
-            input_field(filters::NONE, InputType::object(related_input_type), None).optional(),
+            simple_input_field(filters::EVERY, InputType::object(related_input_type), None).optional(),
+            simple_input_field(filters::SOME, InputType::object(related_input_type), None).optional(),
+            simple_input_field(filters::NONE, InputType::object(related_input_type), None).optional(),
         ]
     });
     object
@@ -91,10 +91,10 @@ fn to_one_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: &RelationField
     object.fields = Box::new(|| {
         let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
         vec![
-            input_field(filters::IS, InputType::object(related_input_type), None)
+            simple_input_field(filters::IS, InputType::object(related_input_type), None)
                 .optional()
                 .nullable_if(!rf.is_required()),
-            input_field(filters::IS_NOT, InputType::object(related_input_type), None)
+            simple_input_field(filters::IS_NOT, InputType::object(related_input_type), None)
                 .optional()
                 .nullable_if(!rf.is_required()),
         ]
@@ -121,13 +121,13 @@ fn to_one_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: &'a Composite
         let composite_equals_object = filter_objects::composite_equality_object(ctx, cf);
 
         let mut fields = vec![
-            input_field(filters::EQUALS, InputType::object(composite_equals_object), None)
+            simple_input_field(filters::EQUALS, InputType::object(composite_equals_object), None)
                 .optional()
                 .nullable_if(!cf.is_required()),
-            input_field(filters::IS, InputType::object(composite_where_object), None)
+            simple_input_field(filters::IS, InputType::object(composite_where_object), None)
                 .optional()
                 .nullable_if(!cf.is_required()),
-            input_field(filters::IS_NOT, InputType::object(composite_where_object), None)
+            simple_input_field(filters::IS_NOT, InputType::object(composite_where_object), None)
                 .optional()
                 .nullable_if(!cf.is_required()),
         ];
@@ -160,10 +160,10 @@ fn to_many_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: &'a Composit
                 None,
             )
             .optional(),
-            input_field(filters::EVERY, InputType::object(composite_where_object), None).optional(),
-            input_field(filters::SOME, InputType::object(composite_where_object), None).optional(),
-            input_field(filters::NONE, InputType::object(composite_where_object), None).optional(),
-            input_field(filters::IS_EMPTY, InputType::boolean(), None).optional(),
+            simple_input_field(filters::EVERY, InputType::object(composite_where_object), None).optional(),
+            simple_input_field(filters::SOME, InputType::object(composite_where_object), None).optional(),
+            simple_input_field(filters::NONE, InputType::object(composite_where_object), None).optional(),
+            simple_input_field(filters::IS_EMPTY, InputType::boolean(), None).optional(),
         ];
 
         // TODO: Remove from required lists once we have optional lists
@@ -200,7 +200,7 @@ fn scalar_list_filter_type<'a>(ctx: BuilderContext<'a>, sf: &'a ScalarFieldRef) 
         let mapped_list_type_with_field_ref_input = mapped_list_type.with_field_ref_input(ctx);
         fields.push(input_field(filters::HAS_EVERY, mapped_list_type_with_field_ref_input.clone(), None).optional());
         fields.push(input_field(filters::HAS_SOME, mapped_list_type_with_field_ref_input, None).optional());
-        fields.push(input_field(filters::IS_EMPTY, InputType::boolean(), None).optional());
+        fields.push(simple_input_field(filters::IS_EMPTY, InputType::boolean(), None).optional());
         fields
     });
     object
@@ -348,7 +348,7 @@ fn full_scalar_filter_type<'a>(
 }
 
 fn is_set_input_field<'a>(ctx: BuilderContext<'a>) -> InputField<'a> {
-    input_field(filters::IS_SET, InputType::boolean(), None).optional()
+    simple_input_field(filters::IS_SET, InputType::boolean(), None).optional()
 }
 
 fn equality_filters<'a>(
@@ -449,7 +449,7 @@ fn string_filters<'a>(
         .collect();
 
     if ctx.can_full_text_search() {
-        string_filters.push(input_field(filters::SEARCH, mapped_type, None).optional());
+        string_filters.push(simple_input_field(filters::SEARCH, mapped_type, None).optional());
     }
 
     string_filters.into_iter()
@@ -469,7 +469,7 @@ fn json_filters<'a>(ctx: BuilderContext<'a>) -> impl Iterator<Item = InputField<
     let json_with_field_ref_input = InputType::json().with_field_ref_input(ctx);
 
     vec![
-        input_field(filters::PATH, path_type, None).optional(),
+        simple_input_field(filters::PATH, path_type, None).optional(),
         input_field(filters::STRING_CONTAINS, string_with_field_ref_input.clone(), None).optional(),
         input_field(filters::STRING_STARTS_WITH, string_with_field_ref_input.clone(), None).optional(),
         input_field(filters::STRING_ENDS_WITH, string_with_field_ref_input, None).optional(),
@@ -492,7 +492,7 @@ fn query_mode_field<'a>(ctx: BuilderContext<'a>, nested: bool) -> impl Iterator<
     let fields = if !nested && ctx.has_capability(ConnectorCapability::InsensitiveFilters) {
         let enum_type = query_mode_enum(ctx);
 
-        let field = input_field(
+        let field = simple_input_field(
             filters::MODE,
             InputType::enum_type(enum_type),
             Some(DefaultKind::Single(PrismaValue::Enum(filters::DEFAULT.to_owned()))),
@@ -509,13 +509,13 @@ fn query_mode_field<'a>(ctx: BuilderContext<'a>, nested: bool) -> impl Iterator<
 
 fn aggregate_filter_field<'a>(
     ctx: BuilderContext<'a>,
-    aggregation: &str,
+    aggregation: impl Into<std::borrow::Cow<'static, str>>,
     typ: &'a TypeIdentifier,
     nullable: bool,
     list: bool,
 ) -> InputField<'a> {
     let filters = full_scalar_filter_type(ctx, typ, None, list, nullable, true, false);
-    input_field(aggregation, InputType::object(filters), None).optional()
+    simple_input_field(aggregation.into(), InputType::object(filters), None).optional()
 }
 
 fn map_avg_type_ident(typ: TypeIdentifier) -> TypeIdentifier {

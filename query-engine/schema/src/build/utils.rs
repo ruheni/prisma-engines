@@ -40,17 +40,22 @@ where
     }
 }
 
+/// An input field with a single possible type.
+pub(crate) fn simple_input_field<'a>(
+    name: impl Into<std::borrow::Cow<'static, str>>,
+    field_type: InputType<'a>,
+    default_value: Option<DefaultKind>,
+) -> InputField<'a> {
+    input_field(name, vec![field_type], default_value)
+}
+
 /// Field convenience wrapper function.
-pub(crate) fn input_field<'a, T, S>(name: T, field_types: S, default_value: Option<DefaultKind>) -> InputField<'a>
-where
-    T: Into<String>,
-    S: IntoIterator<Item = InputType<'a>>,
-{
-    let mut input_field = InputField::new(name.into(), default_value, true);
-    for field_type in field_types {
-        input_field.push_type(field_type);
-    }
-    input_field
+pub(crate) fn input_field<'a>(
+    name: impl Into<std::borrow::Cow<'static, str>>,
+    field_types: Vec<InputType<'a>>,
+    default_value: Option<DefaultKind>,
+) -> InputField<'a> {
+    InputField::new(name.into(), field_types, default_value, true)
 }
 
 /// Appends an option of type T to a vector over T if the option is Some.

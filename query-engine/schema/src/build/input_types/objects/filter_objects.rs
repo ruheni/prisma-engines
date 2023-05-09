@@ -9,11 +9,10 @@ pub(crate) fn scalar_filter_object_type<'a>(
 ) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma(IdentifierType::ScalarFilterInput(model.clone(), include_aggregates));
 
-    let mut input_object = init_input_object_type(ident.clone());
+    let mut input_object = init_input_object_type(ident);
     input_object.set_tag(ObjectTag::WhereInputType(ParentContainer::Model(model.clone())));
-
     input_object.fields = Box::new(move || {
-        let object_type = InputType::object(input_object);
+        let object_type = InputType::object(scalar_filter_object_type(ctx, model.clone(), include_aggregates));
 
         let mut input_fields = vec![
             input_field(
@@ -32,7 +31,7 @@ pub(crate) fn scalar_filter_object_type<'a>(
         ];
 
         input_fields.extend(model.fields().filter_all(|_| true).into_iter().filter_map(|f| match f {
-            ModelField::Scalar(_) => Some(input_fields::filter_input_field(ctx, &f, include_aggregates)),
+            ModelField::Scalar(_) => Some(input_fields::filter_input_field(ctx, f, include_aggregates)),
             ModelField::Relation(_) => None,
             ModelField::Composite(_) => None, // [Composites] todo
         }));
@@ -51,8 +50,8 @@ where
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.set_tag(ObjectTag::WhereInputType(container.clone()));
-    input_object.fields = Box::new(|| {
-        let object_type = InputType::object(input_object);
+    input_object.fields = Box::new(move || {
+        let object_type = InputType::object(where_object_type(ctx, container.clone()));
 
         let mut fields = vec![
             input_field(
@@ -73,7 +72,7 @@ where
         let input_fields = container
             .fields()
             .into_iter()
-            .map(|f| input_fields::filter_input_field(ctx, &f, false));
+            .map(|f| input_fields::filter_input_field(ctx, f, false));
 
         fields.extend(input_fields);
         fields
@@ -147,19 +146,19 @@ pub(crate) fn where_unique_object_type<'a>(ctx: BuilderContext<'a>, model: Model
                 let name = sf.name();
                 let typ = map_scalar_input_type_for_field(ctx, sf);
 
-                input_field(name, typ, None).optional()
+                simple_input_field(name, typ, None).optional()
             })
             .collect();
 
         // @@unique compound fields.
         let compound_unique_fields: Vec<InputField<'_>> = compound_uniques
             .into_iter()
-            .map(|(name, typ)| input_field(name, InputType::object(typ), None).optional())
+            .map(|(name, typ)| simple_input_field(name, InputType::object(typ), None).optional())
             .collect();
 
         // @@id compound field (there can be only one per model).
         let compound_id_field =
-            compound_id.map(|(name, typ)| input_field(name, InputType::object(typ), None).optional());
+            compound_id.map(|(name, typ)| simple_input_field(name, InputType::object(typ), None).optional());
 
         // Boolean operators AND/OR/NOT, which are _not_ where unique inputs
         let where_input_type = InputType::object(where_object_type(ctx, ParentContainer::Model(model.clone())));
@@ -181,7 +180,7 @@ pub(crate) fn where_unique_object_type<'a>(ctx: BuilderContext<'a>, model: Model
 
         let rest_fields: Vec<_> = rest_fields
             .into_iter()
-            .map(|f| input_fields::filter_input_field(ctx, &f, false))
+            .map(|f| input_fields::filter_input_field(ctx, f, false))
             .collect();
 
         fields.extend(compound_unique_fields);
@@ -219,7 +218,7 @@ fn compound_field_unique_object_type<'a>(
                 let name = field.name();
                 let typ = map_scalar_input_type_for_field(ctx, &field);
 
-                input_field(name, typ, None)
+                simple_input_field(name, typ, None)
             })
             .collect()
     });
@@ -239,7 +238,7 @@ pub(crate) fn composite_equality_object<'a>(ctx: BuilderContext<'a>, cf: &'a Com
         let input_fields = composite_type.fields().map(|f| match f {
             ModelField::Scalar(sf) => {
                 let map_scalar_input_type_for_field = map_scalar_input_type_for_field(ctx, &sf);
-                input_field(sf.name(), map_scalar_input_type_for_field, None)
+                simple_input_field(sf.name(), map_scalar_input_type_for_field, None)
                     .optional_if(!sf.is_required())
                     .nullable_if(!sf.is_required() && !sf.is_list())
             }

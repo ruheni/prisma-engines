@@ -1,7 +1,7 @@
 use super::*;
 use fmt::Debug;
 use prisma_models::{prelude::ParentContainer, DefaultKind};
-use std::{boxed::Box, fmt};
+use std::{borrow::Cow, boxed::Box, fmt};
 
 pub struct InputObjectType<'a> {
     pub identifier: Identifier,
@@ -123,26 +123,30 @@ impl<'a> InputObjectType<'a> {
 }
 
 pub struct InputField<'a> {
-    pub name: String,
+    pub name: Cow<'a, str>,
     pub default_value: Option<DefaultKind>,
 
-    field_types: Box<dyn Fn() -> Vec<InputType<'a>> + 'a>,
+    field_types: Vec<InputType<'a>>,
     is_required: bool,
 }
 
 impl<'a> InputField<'a> {
-    pub(crate) fn new(name: String, default_value: Option<DefaultKind>, is_required: bool) -> InputField<'a> {
+    pub(crate) fn new(
+        name: Cow<'a, str>,
+        field_types: Vec<InputType<'a>>,
+        default_value: Option<DefaultKind>,
+        is_required: bool,
+    ) -> InputField<'a> {
         InputField {
             name,
             default_value,
-            field_types: Box::new(|| Vec::new()),
+            field_types,
             is_required,
         }
     }
 
-    pub fn field_types(&self) -> impl ExactSizeIterator<Item = InputType<'a>> {
-        let f = &self.field_types;
-        f().into_iter()
+    pub fn field_types(&self) -> impl ExactSizeIterator<Item = &InputType<'a>> {
+        self.field_types.iter()
     }
 
     /// Indicates if the presence of the field on the higher input objects
@@ -173,8 +177,15 @@ impl<'a> InputField<'a> {
     }
 
     /// Sets the field as nullable (accepting null inputs).
-    pub(crate) fn nullable(self) -> Self {
-        self.add_type(InputType::null())
+    pub(crate) fn nullable(mut self) -> Self {
+        // self.field_types = Box::new(|| {
+        //     let f = &self.field_types;
+        //     let mut fields = f();
+        //     fields.push(InputType::null());
+        //     fields
+        // });
+        self.field_types.push(InputType::null());
+        self
     }
 
     /// Sets the field as nullable if the condition is true.
@@ -184,21 +195,6 @@ impl<'a> InputField<'a> {
         } else {
             self
         }
-    }
-
-    pub(crate) fn push_type(&mut self, typ: InputType<'a>) {
-        self.field_types = Box::new(move || {
-            let f = &self.field_types;
-            let mut types = f();
-            types.push(typ);
-            types
-        });
-    }
-
-    /// Adds possible input type to this input field's type union.
-    pub(crate) fn add_type(mut self, typ: InputType<'a>) -> Self {
-        self.push_type(typ);
-        self
     }
 }
 
@@ -328,14 +324,5 @@ impl<'a> InputType<'a> {
         } else {
             None
         }
-    }
-}
-
-impl<'a> IntoIterator for InputType<'a> {
-    type Item = InputType<'a>;
-    type IntoIter = std::iter::Once<InputType<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        std::iter::once(self)
     }
 }

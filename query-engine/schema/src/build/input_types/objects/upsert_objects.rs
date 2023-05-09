@@ -34,7 +34,7 @@ fn nested_upsert_list_input_object<'a>(
     let mut input_object = init_input_object_type(ident);
     input_object.fields = Box::new(move || {
         vec![
-            input_field(args::WHERE, InputType::object(where_object.clone()), None),
+            input_field(args::WHERE, vec![InputType::object(where_object.clone())], None),
             input_field(args::UPDATE, update_types.clone(), None),
             input_field(args::CREATE, create_types.clone(), None),
         ]

@@ -137,7 +137,7 @@ fn plain_aggregation_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> Outp
 }
 
 /// Builds a "group by" aggregation query field (e.g. "groupByUser") for given model.
-fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
+fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
     field(
         format!("groupBy{}", model.name()),
         arguments::group_by_arguments(ctx, model),
@@ -151,14 +151,14 @@ fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) 
     )
 }
 
-fn mongo_aggregate_raw_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
+fn mongo_aggregate_raw_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
     let field_name = format!("aggregate{}Raw", model.name());
 
     field(
         field_name,
         vec![
-            input_field("pipeline", InputType::list(InputType::json()), None).optional(),
-            input_field("options", InputType::json(), None).optional(),
+            input_field("pipeline", vec![InputType::list(InputType::json())], None).optional(),
+            input_field("options", vec![InputType::json()], None).optional(),
         ],
         OutputType::json(),
         Some(QueryInfo {
@@ -168,14 +168,14 @@ fn mongo_aggregate_raw_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -
     )
 }
 
-fn mongo_find_raw_field<'a>(ctx: BuilderContext<'a>, model: &'a ModelRef) -> OutputField<'a> {
+fn mongo_find_raw_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
     let field_name = format!("find{}Raw", model.name());
 
     field(
         field_name,
         vec![
-            input_field("filter", InputType::json(), None).optional(),
-            input_field("options", InputType::json(), None).optional(),
+            input_field("filter", vec![InputType::json()], None).optional(),
+            input_field("options", vec![InputType::json()], None).optional(),
         ],
         OutputType::json(),
         Some(QueryInfo {

@@ -68,12 +68,11 @@ pub(crate) fn json_null_input_enum(ctx: BuilderContext<'_>, nullable: bool) -> E
 
 pub(crate) fn order_by_relevance_enum(
     ctx: BuilderContext<'_>,
-    container: &ParentContainer,
+    container: ParentContainer,
     values: Vec<String>,
 ) -> EnumType {
-    let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceFieldEnum(container.clone()));
-
-    EnumType::string(ident.clone(), values)
+    let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceFieldEnum(container));
+    EnumType::string(ident, values)
 }
 
 pub(crate) fn query_mode_enum(ctx: BuilderContext<'_>) -> EnumType {
