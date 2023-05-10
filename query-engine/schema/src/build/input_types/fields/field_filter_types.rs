@@ -24,9 +24,6 @@ pub(crate) fn get_field_filter_types(
         ModelField::Composite(cf) if cf.is_list() => vec![
             InputType::object(to_many_composite_filter_object(ctx, cf)),
             InputType::list(to_one_composite_filter_shorthand_types(ctx, cf)),
-            // The object (aka shorthand) syntax is only supported because the client used to expose all
-            // list input types as T | T[]. Consider removing it one day.
-            to_one_composite_filter_shorthand_types(ctx, cf),
         ],
 
         ModelField::Composite(cf) => vec![
@@ -169,9 +166,7 @@ fn to_many_composite_filter_object(ctx: &mut BuilderContext<'_>, cf: &CompositeF
         input_field(
             ctx,
             filters::EQUALS,
-            // The object (aka shorthand) syntax is only supported because the client used to expose all
-            // list input types as T | T[]. Consider removing it one day.
-            list_union_type(InputType::object(composite_equals_object), true),
+            InputType::list(InputType::object(composite_equals_object)),
             None,
         )
         .optional(),
@@ -411,16 +406,13 @@ fn inclusion_filters(
     mapped_type: InputType,
     nullable: bool,
 ) -> impl Iterator<Item = InputField> {
-    let input_type = InputType::list(mapped_type.clone());
+    let input_type = InputType::list(mapped_type);
 
-    let mut field_types: Vec<InputType> = if ctx.has_capability(ConnectorCapability::ScalarLists) {
+    let field_types: Vec<InputType> = if ctx.has_capability(ConnectorCapability::ScalarLists) {
         input_type.with_field_ref_input(ctx)
     } else {
         vec![input_type]
     };
-
-    // Allow for scalar shorthand too: { in: 2 } <=> { in: [2] }
-    field_types.push(mapped_type);
 
     vec![
         input_field(ctx, filters::IN, field_types.clone(), None)
