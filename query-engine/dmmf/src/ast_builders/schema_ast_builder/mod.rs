@@ -44,7 +44,7 @@ pub(crate) struct RenderContext<'a> {
 
     /// The child objects to render next. Rendering is considered complete when
     /// this is empty.
-    next_pass: Vec<Box<dyn Renderer + 'a>>,
+    next_pass: Vec<Box<dyn Renderer<'a> + 'a>>,
 }
 
 impl<'a> RenderContext<'a> {
@@ -157,8 +157,8 @@ impl<'a> RenderContext<'a> {
     }
 }
 
-pub(crate) trait Renderer {
-    fn render(&self, ctx: &mut RenderContext);
+pub(crate) trait Renderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>);
 }
 
 trait AsRenderer<'a> {
@@ -188,7 +188,7 @@ impl<'a> AsRenderer<'a> for &'a EnumType {
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a InputObjectType {
+impl<'a> AsRenderer<'a> for &'a InputObjectType<'a> {
     fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
         Box::new(DmmfObjectRenderer::Input(*self))
     }
@@ -198,7 +198,7 @@ impl<'a> AsRenderer<'a> for &'a InputObjectType {
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a ObjectType {
+impl<'a> AsRenderer<'a> for &'a ObjectType<'a> {
     fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
         Box::new(DmmfObjectRenderer::Output(self))
     }

@@ -11,9 +11,15 @@ pub struct InputObjectType<'a> {
     pub(crate) tag: Option<ObjectTag<'a>>,
 }
 
+impl PartialEq for InputObjectType<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier.eq(&other.identifier)
+    }
+}
+
 /// Object tags help differentiating objects during parsing / raw input data processing,
 /// especially if complex object unions are present.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ObjectTag<'a> {
     CompositeEnvelope,
     RelationEnvelope,
@@ -109,6 +115,7 @@ impl<'a> InputObjectType<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct InputField<'a> {
     pub name: Cow<'a, str>,
     pub default_value: Option<DefaultKind>,
@@ -132,8 +139,8 @@ impl<'a> InputField<'a> {
         }
     }
 
-    pub fn field_types(&self) -> impl ExactSizeIterator<Item = &InputType<'a>> {
-        self.field_types.iter()
+    pub fn field_types(&self) -> &[InputType<'a>] {
+        &self.field_types
     }
 
     /// Indicates if the presence of the field on the higher input objects
@@ -193,17 +200,17 @@ pub enum InputType<'a> {
     Object(InputObjectType<'a>),
 }
 
-// impl<'a> PartialEq for InputType<'a> {
-//     fn eq(&self, other: &Self) -> bool {
-//         match (self, other) {
-//             (InputType::Scalar(st), InputType::Scalar(ost)) => st.eq(ost),
-//             (InputType::Enum(_), InputType::Enum(_)) => true,
-//             (InputType::List(lt), InputType::List(olt)) => lt.eq(olt),
-//             (InputType::Object(obj), InputType::Object(oobj)) => obj == oobj,
-//             _ => false,
-//         }
-//     }
-// }
+impl<'a> PartialEq for InputType<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (InputType::Scalar(st), InputType::Scalar(ost)) => st.eq(ost),
+            (InputType::Enum(_), InputType::Enum(_)) => true,
+            (InputType::List(lt), InputType::List(olt)) => lt.eq(olt),
+            (InputType::Object(obj), InputType::Object(oobj)) => obj == oobj,
+            _ => false,
+        }
+    }
+}
 
 impl<'a> Debug for InputType<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

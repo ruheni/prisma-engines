@@ -202,11 +202,11 @@ pub fn upsert_record(
 // 2. The create and update arguments do not have any nested queries
 // 3. There is only 1 unique field in the where clause
 // 4. The unique field defined in where clause has the same value as defined in the create arguments
-fn can_use_connector_native_upsert(
+fn can_use_connector_native_upsert<'a>(
     model: &ModelRef,
-    where_field: &ParsedInputMap<'_>,
-    create_argument: &ParsedInputMap<'_>,
-    update_argument: &ParsedInputMap<'_>,
+    where_field: &ParsedInputMap<'a>,
+    create_argument: &ParsedInputMap<'a>,
+    update_argument: &ParsedInputMap<'a>,
     selection: &Option<ParsedObject<'_>>,
     connector_ctx: &ConnectorContext,
 ) -> bool {
@@ -262,7 +262,11 @@ fn has_nested_selects(selection: &Option<ParsedObject<'_>>) -> bool {
 
 /// Make sure the unique fields defined in the where clause have the same values
 /// as in the create of the upsert.
-fn where_and_create_equal(field_name: &str, where_value: &ParsedInputValue, create_map: &ParsedInputMap<'_>) -> bool {
+fn where_and_create_equal<'a>(
+    field_name: &str,
+    where_value: &ParsedInputValue<'a>,
+    create_map: &ParsedInputMap<'a>,
+) -> bool {
     match where_value {
         ParsedInputValue::Map(inner_map) => inner_map
             .iter()

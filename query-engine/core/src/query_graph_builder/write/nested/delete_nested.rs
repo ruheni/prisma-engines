@@ -25,7 +25,7 @@ pub fn nested_delete(
     connector_ctx: &ConnectorContext,
     parent_node: &NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let child_model_identifier = parent_relation_field.related_model().primary_identifier();
@@ -33,8 +33,8 @@ pub fn nested_delete(
     if parent_relation_field.is_list() {
         let filters: Vec<Filter> = utils::coerce_vec(value)
             .into_iter()
-            .map(|value: ParsedInputValue| {
-                let value: ParsedInputMap = value.try_into()?;
+            .map(|value: ParsedInputValue<'_>| {
+                let value: ParsedInputMap<'_> = value.try_into()?;
                 extract_unique_filter(value, child_model)
             })
             .collect::<QueryGraphBuilderResult<Vec<Filter>>>()?;
@@ -148,13 +148,13 @@ pub fn nested_delete_many(
     connector_ctx: &ConnectorContext,
     parent: &NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let child_model_identifier = parent_relation_field.related_model().primary_identifier();
 
     for value in utils::coerce_vec(value) {
-        let as_map: ParsedInputMap = value.try_into()?;
+        let as_map: ParsedInputMap<'_> = value.try_into()?;
         let filter = extract_filter(as_map, child_model)?;
 
         let find_child_records_node =

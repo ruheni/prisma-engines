@@ -65,7 +65,7 @@ pub fn create_many_records(
 ) -> QueryGraphBuilderResult<()> {
     graph.flag_transactional();
 
-    let data_list: ParsedInputList = match field.arguments.lookup(args::DATA) {
+    let data_list: ParsedInputList<'_> = match field.arguments.lookup(args::DATA) {
         Some(data) => utils::coerce_vec(data.value),
         None => vec![],
     };

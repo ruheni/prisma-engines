@@ -4,15 +4,15 @@ use super::{
 };
 use schema::{InputField, InputType, OutputField, ScalarType};
 
-pub(super) fn render_input_field(input_field: &InputField, ctx: &mut RenderContext) -> DmmfInputField {
-    let type_references = render_input_types(input_field.field_types(ctx.query_schema), ctx);
+pub(super) fn render_input_field(input_field: &InputField<'_>, ctx: &mut RenderContext) -> DmmfInputField {
+    let type_references = render_input_types(input_field.field_types(), ctx);
     let nullable = input_field
-        .field_types(ctx.query_schema)
+        .field_types()
         .iter()
         .any(|typ| matches!(typ, InputType::Scalar(ScalarType::Null)));
 
     DmmfInputField {
-        name: input_field.name.clone(),
+        name: input_field.name.to_string(),
         input_types: type_references,
         is_required: input_field.is_required(),
         is_nullable: nullable,
@@ -20,7 +20,7 @@ pub(super) fn render_input_field(input_field: &InputField, ctx: &mut RenderConte
     }
 }
 
-pub(super) fn render_output_field(field: &OutputField, ctx: &mut RenderContext) -> DmmfOutputField {
+pub(super) fn render_output_field<'a>(field: &OutputField<'a>, ctx: &mut RenderContext<'a>) -> DmmfOutputField {
     let rendered_inputs = field.arguments.iter().map(|arg| render_input_field(arg, ctx)).collect();
     let output_type = render_output_type(field.field_type(), ctx);
 

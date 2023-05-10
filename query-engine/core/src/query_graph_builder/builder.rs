@@ -47,7 +47,7 @@ impl<'a> QueryGraphBuilder<'a> {
 
         // Because we're processing root objects, there can only be one query / mutation.
         let field_pair = parsed_object.fields.pop().unwrap();
-        let serializer = Self::derive_serializer(&selections.pop().unwrap(), field_pair.schema_field);
+        let serializer = Self::derive_serializer(&selections.pop().unwrap(), field_pair.schema_field.clone());
 
         if field_pair.schema_field.query_info().is_some() {
             let graph = self.dispatch_build(field_pair)?;
@@ -106,7 +106,7 @@ impl<'a> QueryGraphBuilder<'a> {
         Ok(graph)
     }
 
-    fn derive_serializer(selection: &Selection, field: &OutputField<'a>) -> IrSerializer<'a> {
+    fn derive_serializer(selection: &Selection, field: OutputField<'a>) -> IrSerializer<'a> {
         IrSerializer {
             key: selection
                 .alias()

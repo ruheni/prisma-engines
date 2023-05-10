@@ -6,12 +6,12 @@ use prisma_models::{OrderBy, PrismaValue, ScalarFieldRef};
 use schema::ObjectTag;
 use std::ops::{Deref, DerefMut};
 
-pub(crate) type ParsedInputList = Vec<ParsedInputValue>;
+pub(crate) type ParsedInputList<'a> = Vec<ParsedInputValue<'a>>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ParsedInputMap<'a> {
     pub tag: Option<ObjectTag<'a>>,
-    pub(crate) map: IndexMap<String, ParsedInputValue>,
+    pub(crate) map: IndexMap<String, ParsedInputValue<'a>>,
 }
 
 impl<'a> ParsedInputMap<'a> {
@@ -36,14 +36,14 @@ impl<'a> ParsedInputMap<'a> {
     }
 }
 
-impl<'a> From<IndexMap<String, ParsedInputValue>> for ParsedInputMap<'a> {
-    fn from(map: IndexMap<String, ParsedInputValue>) -> Self {
+impl<'a> From<IndexMap<String, ParsedInputValue<'a>>> for ParsedInputMap<'a> {
+    fn from(map: IndexMap<String, ParsedInputValue<'a>>) -> Self {
         Self { tag: None, map }
     }
 }
 
-impl FromIterator<(String, ParsedInputValue)> for ParsedInputMap {
-    fn from_iter<T: IntoIterator<Item = (String, ParsedInputValue)>>(iter: T) -> Self {
+impl<'a> FromIterator<(String, ParsedInputValue<'a>)> for ParsedInputMap<'a> {
+    fn from_iter<T: IntoIterator<Item = (String, ParsedInputValue<'a>)>>(iter: T) -> Self {
         Self {
             tag: None,
             map: iter.into_iter().collect(),
@@ -51,24 +51,24 @@ impl FromIterator<(String, ParsedInputValue)> for ParsedInputMap {
     }
 }
 
-impl IntoIterator for ParsedInputMap {
-    type Item = (String, ParsedInputValue);
-    type IntoIter = indexmap::map::IntoIter<String, ParsedInputValue>;
+impl<'a> IntoIterator for ParsedInputMap<'a> {
+    type Item = (String, ParsedInputValue<'a>);
+    type IntoIter = indexmap::map::IntoIter<String, ParsedInputValue<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.into_iter()
     }
 }
 
-impl Deref for ParsedInputMap {
-    type Target = IndexMap<String, ParsedInputValue>;
+impl<'a> Deref for ParsedInputMap<'a> {
+    type Target = IndexMap<String, ParsedInputValue<'a>>;
 
     fn deref(&self) -> &Self::Target {
         &self.map
     }
 }
 
-impl DerefMut for ParsedInputMap {
+impl<'a> DerefMut for ParsedInputMap<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.map
     }
@@ -85,31 +85,31 @@ pub struct FieldPair<'a> {
     pub parsed_field: ParsedField<'a>,
 
     /// The schema field that the parsed field corresponds to.
-    pub schema_field: &'a schema::OutputField,
+    pub schema_field: schema::OutputField<'a>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct ParsedField<'a> {
     pub name: String,
     pub alias: Option<String>,
-    pub arguments: Vec<ParsedArgument>,
+    pub arguments: Vec<ParsedArgument<'a>>,
     pub nested_fields: Option<ParsedObject<'a>>,
 }
 
-impl ParsedField<'_> {
-    pub(crate) fn where_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap>> {
+impl<'a> ParsedField<'a> {
+    pub(crate) fn where_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap<'a>>> {
         self.look_arg("where")
     }
 
-    pub(crate) fn create_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap>> {
+    pub(crate) fn create_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap<'a>>> {
         self.look_arg("create")
     }
 
-    pub(crate) fn update_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap>> {
+    pub(crate) fn update_arg(&mut self) -> QueryParserResult<Option<ParsedInputMap<'a>>> {
         self.look_arg("update")
     }
 
-    fn look_arg(&mut self, arg_name: &str) -> QueryParserResult<Option<ParsedInputMap>> {
+    fn look_arg(&mut self, arg_name: &str) -> QueryParserResult<Option<ParsedInputMap<'a>>> {
         self.arguments
             .lookup(arg_name)
             .as_ref()
@@ -119,26 +119,26 @@ impl ParsedField<'_> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ParsedArgument {
+pub struct ParsedArgument<'a> {
     pub name: String,
-    pub(crate) value: ParsedInputValue,
+    pub(crate) value: ParsedInputValue<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ParsedInputValue {
+pub enum ParsedInputValue<'a> {
     Single(PrismaValue),
     OrderBy(OrderBy),
     ScalarField(ScalarFieldRef),
-    List(ParsedInputList),
-    Map(ParsedInputMap),
+    List(ParsedInputList<'a>),
+    Map(ParsedInputMap<'a>),
 }
 
-pub(crate) trait ArgumentListLookup {
-    fn lookup(&mut self, name: &str) -> Option<ParsedArgument>;
+pub(crate) trait ArgumentListLookup<'a> {
+    fn lookup(&mut self, name: &str) -> Option<ParsedArgument<'a>>;
 }
 
-impl ArgumentListLookup for Vec<ParsedArgument> {
-    fn lookup(&mut self, name: &str) -> Option<ParsedArgument> {
+impl<'a> ArgumentListLookup<'a> for Vec<ParsedArgument<'a>> {
+    fn lookup(&mut self, name: &str) -> Option<ParsedArgument<'a>> {
         self.iter().position(|arg| arg.name == name).map(|pos| self.remove(pos))
     }
 }

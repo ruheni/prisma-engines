@@ -150,7 +150,7 @@ fn collect_aggregate_field_refs(filter: &Filter) -> Vec<&ScalarFieldRef> {
     }
 }
 
-fn extract_grouping(value: ParsedInputValue) -> QueryGraphBuilderResult<Vec<ScalarFieldRef>> {
+fn extract_grouping(value: ParsedInputValue<'_>) -> QueryGraphBuilderResult<Vec<ScalarFieldRef>> {
     match value {
         ParsedInputValue::ScalarField(field) => Ok(vec![field]),
 

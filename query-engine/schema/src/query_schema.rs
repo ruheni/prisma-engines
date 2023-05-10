@@ -291,7 +291,7 @@ impl Identifier {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum ScalarType {
     Null,
     String,

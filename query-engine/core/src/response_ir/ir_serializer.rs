@@ -10,7 +10,7 @@ pub struct IrSerializer<'a> {
     pub(crate) key: String,
 
     /// Output field describing the possible shape of the result
-    pub(crate) output_field: &'a OutputField,
+    pub(crate) output_field: OutputField<'a>,
 }
 
 impl<'a> IrSerializer<'a> {

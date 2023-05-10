@@ -42,7 +42,7 @@ pub fn nested_update(
     connector_ctx: &ConnectorContext,
     parent: &NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     for value in utils::coerce_vec(value) {
@@ -128,7 +128,7 @@ pub fn nested_update_many(
     connector_ctx: &ConnectorContext,
     parent: &NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     for value in utils::coerce_vec(value) {

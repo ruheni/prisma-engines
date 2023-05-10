@@ -3,13 +3,13 @@ use crate::EnumType;
 use constants::{filters, itx, json_null, ordering};
 use prisma_models::prelude::ParentContainer;
 
-pub(crate) fn sort_order_enum(ctx: BuilderContext<'_>) -> EnumType {
+pub(crate) fn sort_order_enum() -> EnumType {
     let ident = Identifier::new_prisma(ordering::SORT_ORDER);
 
     EnumType::string(ident.clone(), vec![ordering::ASC.to_owned(), ordering::DESC.to_owned()])
 }
 
-pub(crate) fn nulls_order_enum(ctx: BuilderContext<'_>) -> EnumType {
+pub(crate) fn nulls_order_enum() -> EnumType {
     EnumType::string(
         Identifier::new_prisma(ordering::NULLS_ORDER),
         vec![ordering::FIRST.to_owned(), ordering::LAST.to_owned()],

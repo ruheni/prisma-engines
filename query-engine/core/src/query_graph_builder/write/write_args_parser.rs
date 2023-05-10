@@ -8,21 +8,21 @@ use schema::constants::{args, json_null, operations};
 use std::convert::TryInto;
 
 #[derive(Debug)]
-pub struct WriteArgsParser {
+pub struct WriteArgsParser<'a> {
     pub args: WriteArgs,
-    pub nested: Vec<(RelationFieldRef, ParsedInputMap<'_>)>,
+    pub nested: Vec<(RelationFieldRef, ParsedInputMap<'a>)>,
 }
 
-impl WriteArgsParser {
+impl<'a> WriteArgsParser<'a> {
     /// Creates a new set of WriteArgsParser. Expects the parsed input map from the respective data key, not the enclosing map.
     /// E.g.: { data: { THIS MAP } } from the `data` argument of a write query.
-    pub fn from(model: &ModelRef, data_map: ParsedInputMap<'_>) -> QueryGraphBuilderResult<Self> {
+    pub fn from(model: &ModelRef, data_map: ParsedInputMap<'a>) -> QueryGraphBuilderResult<Self> {
         data_map.into_iter().try_fold(
             WriteArgsParser {
                 args: WriteArgs::new_empty(crate::executor::get_request_now()),
                 nested: Default::default(),
             },
-            |mut args, (k, v): (String, ParsedInputValue)| {
+            |mut args, (k, v): (String, ParsedInputValue<'_>)| {
                 let field = model.fields().find_from_all(&k).unwrap();
 
                 match field {
@@ -55,7 +55,7 @@ impl WriteArgsParser {
     }
 }
 
-fn parse_scalar(sf: &ScalarFieldRef, v: ParsedInputValue) -> Result<WriteOperation, QueryGraphBuilderError> {
+fn parse_scalar(sf: &ScalarFieldRef, v: ParsedInputValue<'_>) -> Result<WriteOperation, QueryGraphBuilderError> {
     match v {
         ParsedInputValue::Single(PrismaValue::Enum(e)) if sf.type_identifier() == TypeIdentifier::Json => {
             let val = match e.as_str() {
@@ -87,7 +87,7 @@ fn parse_scalar(sf: &ScalarFieldRef, v: ParsedInputValue) -> Result<WriteOperati
     }
 }
 
-fn parse_scalar_list(v: ParsedInputValue) -> QueryGraphBuilderResult<WriteOperation> {
+fn parse_scalar_list(v: ParsedInputValue<'_>) -> QueryGraphBuilderResult<WriteOperation> {
     match v {
         ParsedInputValue::List(_) => {
             let set_value: PrismaValue = v.try_into()?;
@@ -101,7 +101,7 @@ fn parse_scalar_list(v: ParsedInputValue) -> QueryGraphBuilderResult<WriteOperat
 
 fn parse_composite_writes(
     cf: &CompositeFieldRef,
-    v: ParsedInputValue,
+    v: ParsedInputValue<'_>,
     path: &mut Vec<DatasourceFieldName>,
 ) -> QueryGraphBuilderResult<WriteOperation> {
     match v {

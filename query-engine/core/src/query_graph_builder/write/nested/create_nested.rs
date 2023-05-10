@@ -18,7 +18,7 @@ pub fn nested_create(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let relation = parent_relation_field.relation();
@@ -421,13 +421,13 @@ pub fn nested_create_many(
     graph: &mut QueryGraph,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     // Nested input is an object of { data: [...], skipDuplicates: bool }
-    let mut obj: ParsedInputMap = value.try_into()?;
+    let mut obj: ParsedInputMap<'_> = value.try_into()?;
 
-    let data_list: ParsedInputList = utils::coerce_vec(obj.remove(args::DATA).unwrap());
+    let data_list: ParsedInputList<'_> = utils::coerce_vec(obj.remove(args::DATA).unwrap());
     let skip_duplicates: bool = match obj.remove(args::SKIP_DUPLICATES) {
         Some(val) => val.try_into()?,
         None => false,

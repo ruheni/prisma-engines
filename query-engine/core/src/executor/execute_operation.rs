@@ -163,12 +163,12 @@ async fn execute_self_contained(
     result
 }
 
-async fn execute_self_contained_without_retry(
+async fn execute_self_contained_without_retry<'a>(
     mut conn: Box<dyn Connection>,
     graph: QueryGraph,
-    serializer: IrSerializer<'_>,
+    serializer: IrSerializer<'a>,
     force_transactions: bool,
-    query_schema: &QuerySchema,
+    query_schema: &'a QuerySchema,
     trace_id: Option<String>,
 ) -> crate::Result<ResponseData> {
     if force_transactions || graph.needs_transaction() {
@@ -225,11 +225,11 @@ async fn execute_self_contained_with_retry(
     }
 }
 
-async fn execute_in_tx(
+async fn execute_in_tx<'a>(
     conn: &mut Box<dyn Connection>,
     graph: QueryGraph,
-    serializer: IrSerializer<'_>,
-    query_schema: &QuerySchema,
+    serializer: IrSerializer<'a>,
+    query_schema: &'a QuerySchema,
     trace_id: Option<String>,
 ) -> crate::Result<ResponseData> {
     let mut tx = conn.start_transaction(None).await?;
@@ -253,7 +253,7 @@ async fn execute_in_tx(
 
 // Simplest execution on anything that's a ConnectionLike. Caller decides handling of connections and transactions.
 async fn execute_on<'a>(
-    conn: &'a mut dyn ConnectionLike,
+    conn: &mut dyn ConnectionLike,
     graph: QueryGraph,
     serializer: IrSerializer<'a>,
     query_schema: &'a QuerySchema,

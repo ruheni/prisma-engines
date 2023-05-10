@@ -2,12 +2,12 @@ use super::*;
 
 #[derive(Debug)]
 pub(crate) enum DmmfObjectRenderer<'a> {
-    Input(&'a InputObjectType),
-    Output(&'a ObjectType),
+    Input(&'a InputObjectType<'a>),
+    Output(&'a ObjectType<'a>),
 }
 
-impl Renderer for DmmfObjectRenderer<'_> {
-    fn render(&self, ctx: &mut RenderContext) {
+impl<'a> Renderer<'a> for DmmfObjectRenderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>) {
         match &self {
             DmmfObjectRenderer::Input(input_object) => match input_object.tag() {
                 Some(ObjectTag::FieldRefType(_)) => self.render_field_ref_type(input_object, ctx),
@@ -31,7 +31,7 @@ impl DmmfObjectRenderer<'_> {
         let mut rendered_fields = Vec::with_capacity(fields.len());
 
         for field in fields {
-            rendered_fields.push(render_input_field(field, ctx));
+            rendered_fields.push(render_input_field(&field, ctx));
         }
 
         let meta = input_object.tag().and_then(|tag| match tag {
@@ -67,7 +67,7 @@ impl DmmfObjectRenderer<'_> {
         let mut rendered_fields = Vec::with_capacity(fields.len());
 
         for field in fields {
-            rendered_fields.push(render_input_field(field, ctx));
+            rendered_fields.push(render_input_field(&field, ctx));
         }
 
         let allow_type = match input_object.tag() {
@@ -84,7 +84,7 @@ impl DmmfObjectRenderer<'_> {
         ctx.add_field_ref_type(input_object.identifier.clone(), field_ref_type);
     }
 
-    fn render_output_object(&self, output_object: &ObjectType, ctx: &mut RenderContext) {
+    fn render_output_object<'a>(&self, output_object: &ObjectType<'a>, ctx: &mut RenderContext<'a>) {
         if ctx.already_rendered(output_object.identifier()) {
             return;
         }
@@ -96,7 +96,7 @@ impl DmmfObjectRenderer<'_> {
         let mut rendered_fields: Vec<DmmfOutputField> = Vec::with_capacity(fields.len());
 
         for field in fields {
-            rendered_fields.push(render_output_field(field, ctx))
+            rendered_fields.push(render_output_field(&field, ctx))
         }
 
         let output_type = DmmfOutputType {

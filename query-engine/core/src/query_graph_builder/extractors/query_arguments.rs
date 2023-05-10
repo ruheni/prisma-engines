@@ -11,7 +11,7 @@ use std::convert::TryInto;
 /// Expects the caller to know that it is structurally guaranteed that query arguments can be extracted,
 /// e.g. that the query schema guarantees that required fields are present.
 /// Errors occur if conversions fail.
-pub fn extract_query_args(arguments: Vec<ParsedArgument>, model: &ModelRef) -> QueryGraphBuilderResult<QueryArguments> {
+pub fn extract_query_args(arguments: Vec<ParsedArgument<'_>>, model: &ModelRef) -> QueryGraphBuilderResult<QueryArguments> {
     let query_args = arguments.into_iter().fold(
         Ok(QueryArguments::new(model.clone())),
         |result: QueryGraphBuilderResult<QueryArguments>, arg| {
@@ -43,7 +43,7 @@ pub fn extract_query_args(arguments: Vec<ParsedArgument>, model: &ModelRef) -> Q
                     }),
 
                     args::WHERE => {
-                        let val: Option<ParsedInputMap> = arg.value.try_into()?;
+                        let val: Option<ParsedInputMap<'_>> = arg.value.try_into()?;
                         match val {
                             Some(m) => {
                                 let filter = Some(extract_filter(m, model)?);
@@ -65,12 +65,12 @@ pub fn extract_query_args(arguments: Vec<ParsedArgument>, model: &ModelRef) -> Q
 }
 
 /// Extracts order by conditions in order of appearance.
-fn extract_order_by(container: &ParentContainer, value: ParsedInputValue) -> QueryGraphBuilderResult<Vec<OrderBy>> {
+fn extract_order_by(container: &ParentContainer, value: ParsedInputValue<'_>) -> QueryGraphBuilderResult<Vec<OrderBy>> {
     match value {
         ParsedInputValue::List(list) => list
             .into_iter()
             .map(|list_value| {
-                let object: ParsedInputMap = list_value.try_into()?;
+                let object: ParsedInputMap<'_> = list_value.try_into()?;
                 process_order_object(container, object, vec![], None)
             })
             .collect::<QueryGraphBuilderResult<Vec<_>>>()
@@ -87,7 +87,7 @@ fn extract_order_by(container: &ParentContainer, value: ParsedInputValue) -> Que
 
 fn process_order_object(
     container: &ParentContainer,
-    object: ParsedInputMap,
+    object: ParsedInputMap<'_>,
     mut path: Vec<OrderByHop>,
     parent_sort_aggregation: Option<SortAggregation>,
 ) -> QueryGraphBuilderResult<Option<OrderBy>> {
@@ -95,13 +95,13 @@ fn process_order_object(
         None => Ok(None),
         Some((field_name, field_value)) => {
             if field_name.as_str() == ordering::UNDERSCORE_RELEVANCE {
-                let object: ParsedInputMap = field_value.try_into()?;
+                let object: ParsedInputMap<'_> = field_value.try_into()?;
 
                 return extract_order_by_relevance(container, object);
             }
 
             if let Some(sort_aggr) = extract_sort_aggregation(field_name.as_str()) {
-                let object: ParsedInputMap = field_value.try_into()?;
+                let object: ParsedInputMap<'_> = field_value.try_into()?;
 
                 return process_order_object(container, object, path, Some(sort_aggr));
             }
@@ -112,7 +112,7 @@ fn process_order_object(
 
             match field {
                 Field::Relation(rf) if rf.is_list() => {
-                    let object: ParsedInputMap = field_value.try_into()?;
+                    let object: ParsedInputMap<'_> = field_value.try_into()?;
 
                     path.push(rf.into());
 
@@ -125,7 +125,7 @@ fn process_order_object(
                 }
 
                 Field::Relation(rf) => {
-                    let object: ParsedInputMap = field_value.try_into()?;
+                    let object: ParsedInputMap<'_> = field_value.try_into()?;
                     path.push((&rf).into());
 
                     process_order_object(&rf.related_model().into(), object, path, None)
@@ -143,7 +143,7 @@ fn process_order_object(
                 }
 
                 Field::Composite(cf) if cf.is_list() => {
-                    let object: ParsedInputMap = field_value.try_into()?;
+                    let object: ParsedInputMap<'_> = field_value.try_into()?;
 
                     path.push(cf.into());
 
@@ -156,7 +156,7 @@ fn process_order_object(
                 }
 
                 Field::Composite(cf) => {
-                    let object: ParsedInputMap = field_value.try_into()?;
+                    let object: ParsedInputMap<'_> = field_value.try_into()?;
                     path.push((&cf).into());
 
                     process_order_object(&cf.typ().into(), object, path, None)
@@ -168,7 +168,7 @@ fn process_order_object(
 
 fn extract_order_by_relevance(
     container: &ParentContainer,
-    object: ParsedInputMap,
+    object: ParsedInputMap<'_>,
 ) -> QueryGraphBuilderResult<Option<OrderBy>> {
     let (sort_order, _) = extract_order_by_args(object.get(ordering::SORT).unwrap().clone())?;
     let search: PrismaValue = object.get(ordering::SEARCH).unwrap().clone().try_into()?;
@@ -209,7 +209,7 @@ fn extract_sort_aggregation(field_name: &str) -> Option<SortAggregation> {
     }
 }
 
-fn extract_order_by_args(field_value: ParsedInputValue) -> QueryGraphBuilderResult<(SortOrder, Option<NullsOrder>)> {
+fn extract_order_by_args(field_value: ParsedInputValue<'_>) -> QueryGraphBuilderResult<(SortOrder, Option<NullsOrder>)> {
     match field_value {
         ParsedInputValue::Map(mut map) => {
             let sort: PrismaValue = map.remove(ordering::SORT).unwrap().try_into()?;
@@ -248,7 +248,7 @@ fn pv_to_nulls_order(pv: PrismaValue) -> QueryGraphBuilderResult<NullsOrder> {
     Ok(nulls_order)
 }
 
-fn extract_distinct(value: ParsedInputValue) -> QueryGraphBuilderResult<FieldSelection> {
+fn extract_distinct(value: ParsedInputValue<'_>) -> QueryGraphBuilderResult<FieldSelection> {
     let selections = match value {
         ParsedInputValue::List(list) => list
             .into_iter()
@@ -263,7 +263,7 @@ fn extract_distinct(value: ParsedInputValue) -> QueryGraphBuilderResult<FieldSel
     Ok(FieldSelection::new(selections))
 }
 
-fn extract_skip(value: ParsedInputValue) -> QueryGraphBuilderResult<Option<i64>> {
+fn extract_skip(value: ParsedInputValue<'_>) -> QueryGraphBuilderResult<Option<i64>> {
     let val: Option<i64> = value.try_into()?;
 
     match val {
@@ -275,8 +275,8 @@ fn extract_skip(value: ParsedInputValue) -> QueryGraphBuilderResult<Option<i64>>
     }
 }
 
-fn extract_cursor(value: ParsedInputValue, model: &ModelRef) -> QueryGraphBuilderResult<Option<SelectionResult>> {
-    let input_map: ParsedInputMap = value.try_into()?;
+fn extract_cursor(value: ParsedInputValue<'_>, model: &ModelRef) -> QueryGraphBuilderResult<Option<SelectionResult>> {
+    let input_map: ParsedInputMap<'_> = value.try_into()?;
     let mut pairs = vec![];
 
     for (field_name, map_value) in input_map {
@@ -302,7 +302,7 @@ fn extract_cursor(value: ParsedInputValue, model: &ModelRef) -> QueryGraphBuilde
 
 fn extract_cursor_field(
     field: ScalarFieldRef,
-    input_value: ParsedInputValue,
+    input_value: ParsedInputValue<'_>,
 ) -> QueryGraphBuilderResult<Vec<(ScalarFieldRef, PrismaValue)>> {
     let value = input_value.try_into()?;
     Ok(vec![(field, value)])
@@ -310,9 +310,9 @@ fn extract_cursor_field(
 
 fn extract_compound_cursor_field(
     fields: Vec<ScalarFieldRef>,
-    input_value: ParsedInputValue,
+    input_value: ParsedInputValue<'_>,
 ) -> QueryGraphBuilderResult<Vec<(ScalarFieldRef, PrismaValue)>> {
-    let mut map: ParsedInputMap = input_value.try_into()?;
+    let mut map: ParsedInputMap<'_> = input_value.try_into()?;
     let mut pairs = vec![];
 
     for field in fields {

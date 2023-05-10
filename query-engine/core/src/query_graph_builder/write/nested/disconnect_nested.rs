@@ -16,7 +16,7 @@ pub fn nested_disconnect(
     graph: &mut QueryGraph,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let relation = parent_relation_field.relation();
@@ -25,7 +25,7 @@ pub fn nested_disconnect(
         // Build all filters upfront.
         let filters: Vec<Filter> = utils::coerce_vec(value)
             .into_iter()
-            .map(|value: ParsedInputValue| {
+            .map(|value: ParsedInputValue<'_>| {
                 let value: ParsedInputMap<'_> = value.try_into()?;
                 extract_unique_filter(value, child_model)
             })
@@ -55,7 +55,7 @@ pub fn nested_disconnect(
             if parent_relation_field.is_list() {
                 let filters = utils::coerce_vec(value)
                     .into_iter()
-                    .map(|value: ParsedInputValue| {
+                    .map(|value: ParsedInputValue<'_>| {
                         let value: ParsedInputMap<'_> = value.try_into()?;
                         extract_unique_filter(value, child_model)
                     })

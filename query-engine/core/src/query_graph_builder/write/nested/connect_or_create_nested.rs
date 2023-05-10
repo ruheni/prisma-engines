@@ -18,7 +18,7 @@ pub(crate) fn nested_connect_or_create(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    value: ParsedInputValue,
+    value: ParsedInputValue<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let relation = parent_relation_field.relation();
@@ -93,17 +93,17 @@ fn handle_many_to_many(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    values: Vec<ParsedInputValue>,
+    values: Vec<ParsedInputValue<'_>>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     for value in values {
-        let mut value: ParsedInputMap = value.try_into()?;
+        let mut value: ParsedInputMap<'_> = value.try_into()?;
 
         let where_arg = value.remove(args::WHERE).unwrap();
-        let where_map: ParsedInputMap = where_arg.try_into()?;
+        let where_map: ParsedInputMap<'_> = where_arg.try_into()?;
 
         let create_arg = value.remove(args::CREATE).unwrap();
-        let create_map: ParsedInputMap = create_arg.try_into()?;
+        let create_map: ParsedInputMap<'_> = create_arg.try_into()?;
 
         let filter = extract_unique_filter(where_map, child_model)?;
         let read_node = graph.create_node(utils::read_ids_infallible(
@@ -150,7 +150,7 @@ fn handle_one_to_many(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    values: Vec<ParsedInputValue>,
+    values: Vec<ParsedInputValue<'_>>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     if parent_relation_field.is_inlined_on_enclosing_model() {
@@ -180,17 +180,17 @@ fn handle_one_to_one(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    mut values: Vec<ParsedInputValue>,
+    mut values: Vec<ParsedInputValue<'_>>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let value = values.pop().unwrap();
-    let mut value: ParsedInputMap = value.try_into()?;
+    let mut value: ParsedInputMap<'_> = value.try_into()?;
 
     let where_arg = value.remove(args::WHERE).unwrap();
-    let where_map: ParsedInputMap = where_arg.try_into()?;
+    let where_map: ParsedInputMap<'_> = where_arg.try_into()?;
 
     let create_arg = value.remove(args::CREATE).unwrap();
-    let create_data: ParsedInputMap = create_arg.try_into()?;
+    let create_data: ParsedInputMap<'_> = create_arg.try_into()?;
 
     let filter = extract_unique_filter(where_map, child_model)?;
 
@@ -251,20 +251,20 @@ fn one_to_many_inlined_child(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    values: Vec<ParsedInputValue>,
+    values: Vec<ParsedInputValue<'_>>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     for value in values {
         let parent_link = parent_relation_field.linking_fields();
         let child_link = parent_relation_field.related_field().linking_fields();
 
-        let mut value: ParsedInputMap = value.try_into()?;
+        let mut value: ParsedInputMap<'_> = value.try_into()?;
 
         let where_arg = value.remove(args::WHERE).unwrap();
-        let where_map: ParsedInputMap = where_arg.try_into()?;
+        let where_map: ParsedInputMap<'_> = where_arg.try_into()?;
 
         let create_arg = value.remove(args::CREATE).unwrap();
-        let create_map: ParsedInputMap = create_arg.try_into()?;
+        let create_map: ParsedInputMap<'_> = create_arg.try_into()?;
 
         let filter = extract_unique_filter(where_map, child_model)?;
         let read_node = graph.create_node(utils::read_ids_infallible(
@@ -390,20 +390,20 @@ fn one_to_many_inlined_parent(
     connector_ctx: &ConnectorContext,
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
-    mut values: Vec<ParsedInputValue>,
+    mut values: Vec<ParsedInputValue<'_>>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let parent_link = parent_relation_field.linking_fields();
     let child_link = parent_relation_field.related_field().linking_fields();
 
     let value = values.pop().unwrap();
-    let mut value: ParsedInputMap = value.try_into()?;
+    let mut value: ParsedInputMap<'_> = value.try_into()?;
 
     let where_arg = value.remove(args::WHERE).unwrap();
-    let where_map: ParsedInputMap = where_arg.try_into()?;
+    let where_map: ParsedInputMap<'_> = where_arg.try_into()?;
 
     let create_arg = value.remove(args::CREATE).unwrap();
-    let create_map: ParsedInputMap = create_arg.try_into()?;
+    let create_map: ParsedInputMap<'_> = create_arg.try_into()?;
 
     let filter = extract_unique_filter(where_map, child_model)?;
     let read_node = graph.create_node(utils::read_ids_infallible(
@@ -562,7 +562,7 @@ fn one_to_one_inlined_parent(
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
     filter: Filter,
-    create_data: ParsedInputMap,
+    create_data: ParsedInputMap<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let parent_link = parent_relation_field.linking_fields();
@@ -779,7 +779,7 @@ fn one_to_one_inlined_child(
     parent_node: NodeRef,
     parent_relation_field: &RelationFieldRef,
     filter: Filter,
-    create_data: ParsedInputMap,
+    create_data: ParsedInputMap<'_>,
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     let child_model_identifier = child_model.primary_identifier();

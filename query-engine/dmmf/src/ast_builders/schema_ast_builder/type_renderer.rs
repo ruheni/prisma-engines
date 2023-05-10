@@ -1,10 +1,9 @@
 use super::{DmmfTypeReference, RenderContext, TypeLocation};
 use schema::{InputType, ObjectTag, OutputType, ScalarType};
 
-pub(super) fn render_output_type(output_type: &OutputType, ctx: &mut RenderContext) -> DmmfTypeReference {
+pub(super) fn render_output_type<'a>(output_type: &OutputType<'a>, ctx: &mut RenderContext<'a>) -> DmmfTypeReference {
     match output_type {
         OutputType::Object(ref obj) => {
-            let obj = &ctx.query_schema.db[*obj];
             ctx.mark_to_be_rendered(&obj);
 
             let type_reference = DmmfTypeReference {
@@ -18,7 +17,6 @@ pub(super) fn render_output_type(output_type: &OutputType, ctx: &mut RenderConte
         }
 
         OutputType::Enum(et) => {
-            let et = &ctx.query_schema.db[*et];
             ctx.mark_to_be_rendered(&et);
 
             let ident = et.identifier();
@@ -32,13 +30,13 @@ pub(super) fn render_output_type(output_type: &OutputType, ctx: &mut RenderConte
             type_reference
         }
 
-        OutputType::List(ref l) => {
+        OutputType::List(l) => {
             let mut type_reference = render_output_type(l, ctx);
             type_reference.is_list = true;
             type_reference
         }
 
-        OutputType::Scalar(ref scalar) => {
+        OutputType::Scalar(scalar) => {
             let stringified = match scalar {
                 ScalarType::Null => "Null",
                 ScalarType::String => "String",
@@ -75,7 +73,6 @@ pub(super) fn render_input_types(input_types: &[InputType], ctx: &mut RenderCont
 pub(super) fn render_input_type(input_type: &InputType, ctx: &mut RenderContext) -> DmmfTypeReference {
     match input_type {
         InputType::Object(ref obj) => {
-            let obj = &ctx.query_schema.db[*obj];
             ctx.mark_to_be_rendered(&obj);
 
             let location = match obj.tag() {
@@ -94,7 +91,6 @@ pub(super) fn render_input_type(input_type: &InputType, ctx: &mut RenderContext)
         }
 
         InputType::Enum(et) => {
-            let et = &ctx.query_schema.db[*et];
             ctx.mark_to_be_rendered(&et);
 
             let ident = et.identifier();

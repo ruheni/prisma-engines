@@ -3,7 +3,7 @@ use fmt::Debug;
 use prisma_models::{ast::ModelId, ModelRef};
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OutputType<'a> {
     Enum(EnumType),
     List(Box<OutputType<'a>>),
@@ -110,6 +110,7 @@ impl<'a> OutputType<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct ObjectType<'a> {
     pub(crate) identifier: Identifier,
     pub(crate) fields: Arc<dyn Fn() -> Vec<OutputField<'a>> + Send + Sync + 'a>,
@@ -154,6 +155,7 @@ impl<'a> ObjectType<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct OutputField<'a> {
     pub(crate) name: String,
     pub(super) field_type: OutputType<'a>,
@@ -210,7 +212,7 @@ impl<'a> OutputField<'a> {
 
     // Is relation determines whether the given output field maps to a a relation, i.e.
     // is an object and that object is backed by a model, meaning that it is not an scalar list
-    pub(crate) fn maps_to_relation(&self) -> bool {
+    pub fn maps_to_relation(&self) -> bool {
         let o = self.field_type.as_object_type();
         o.is_some() && o.unwrap().model.is_some()
     }
