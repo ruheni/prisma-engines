@@ -26,7 +26,7 @@ pub fn nested_connect(
     let filters: Vec<Filter> = utils::coerce_vec(value)
         .into_iter()
         .map(|value: ParsedInputValue| {
-            let value: ParsedInputMap = value.try_into()?;
+            let value: ParsedInputMap<'_> = value.try_into()?;
             extract_unique_filter(value, child_model)
         })
         .collect::<QueryGraphBuilderResult<Vec<Filter>>>()?

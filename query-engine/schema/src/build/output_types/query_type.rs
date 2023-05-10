@@ -5,7 +5,7 @@ use input_types::fields::arguments;
 pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
     ObjectType {
         identifier: Identifier::new_prisma("Query"),
-        fields: Box::new(|| {
+        fields: Arc::new(|| {
             ctx.internal_data_model
                 .models()
                 .flat_map(|model| {

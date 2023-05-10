@@ -64,7 +64,7 @@ fn nested_create_many_envelope<'a>(ctx: BuilderContext<'a>, parent_field: Relati
     let name = format!("{}Envelope", create_type.identifier.name());
     let ident = Identifier::new_prisma(name);
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let create_many_type = InputType::object(create_type.clone());
         let data_arg = input_field(args::DATA, list_union_type(create_many_type, true), None);
 

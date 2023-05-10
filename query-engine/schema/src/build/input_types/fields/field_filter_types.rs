@@ -23,15 +23,15 @@ pub(crate) fn get_field_filter_types<'a>(
 
         ModelField::Composite(cf) if cf.is_list() => vec![
             InputType::object(to_many_composite_filter_object(ctx, cf.clone())),
-            InputType::list(to_one_composite_filter_shorthand_types(ctx, &cf)),
+            InputType::list(to_one_composite_filter_shorthand_types(ctx, cf.clone())),
             // The object (aka shorthand) syntax is only supported because the client used to expose all
             // list input types as T | T[]. Consider removing it one day.
-            to_one_composite_filter_shorthand_types(ctx, &cf),
+            to_one_composite_filter_shorthand_types(ctx, cf.clone()),
         ],
 
         ModelField::Composite(cf) => vec![
             InputType::object(to_one_composite_filter_object(ctx, cf.clone())),
-            to_one_composite_filter_shorthand_types(ctx, &cf),
+            to_one_composite_filter_shorthand_types(ctx, cf.clone()),
         ],
 
         ModelField::Scalar(sf) if field.is_list() => vec![InputType::object(scalar_list_filter_type(ctx, sf))],
@@ -39,8 +39,8 @@ pub(crate) fn get_field_filter_types<'a>(
         ModelField::Scalar(sf) => {
             let mut types = vec![InputType::object(full_scalar_filter_type(
                 ctx,
-                &sf.type_identifier(),
-                sf.native_type().as_ref(),
+                sf.type_identifier(),
+                sf.native_type(),
                 sf.is_list(),
                 !sf.is_required(),
                 false,
@@ -70,7 +70,7 @@ fn to_many_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: RelationField
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::RelationEnvelope);
 
-    object.fields = Box::new(move || {
+    object.fields = Arc::new(move || {
         let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
         vec![
             simple_input_field(filters::EVERY, InputType::object(related_input_type.clone()), None).optional(),
@@ -88,7 +88,7 @@ fn to_one_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: RelationFieldR
 
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::RelationEnvelope);
-    object.fields = Box::new(move || {
+    object.fields = Arc::new(move || {
         let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
         vec![
             simple_input_field(filters::IS, InputType::object(related_input_type.clone()), None)
@@ -103,10 +103,8 @@ fn to_one_relation_filter_object<'a>(ctx: BuilderContext<'a>, rf: RelationFieldR
 }
 
 /// Builds shorthand composite equality (`equals`) filter for to-one: `where: { composite_field: { ... } }` (no `equals` in between).
-fn to_one_composite_filter_shorthand_types<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> InputType<'a> {
-    let equality_object_type = filter_objects::composite_equality_object(ctx, cf);
-
-    InputType::object(equality_object_type)
+fn to_one_composite_filter_shorthand_types<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputType<'a> {
+    InputType::object(filter_objects::composite_equality_object(ctx, cf))
 }
 
 fn to_one_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldRef) -> InputObjectType<'a> {
@@ -116,9 +114,9 @@ fn to_one_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: CompositeFiel
     object.require_exactly_one_field();
     object.set_tag(ObjectTag::CompositeEnvelope);
 
-    object.fields = Box::new(move || {
+    object.fields = Arc::new(move || {
         let composite_where_object = filter_objects::where_object_type(ctx, cf.typ());
-        let composite_equals_object = filter_objects::composite_equality_object(ctx, &cf);
+        let composite_equals_object = filter_objects::composite_equality_object(ctx, cf.clone());
 
         let mut fields = vec![
             simple_input_field(filters::EQUALS, InputType::object(composite_equals_object), None)
@@ -147,9 +145,9 @@ fn to_many_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: CompositeFie
     let mut object = init_input_object_type(ident);
     object.require_exactly_one_field();
     object.set_tag(ObjectTag::CompositeEnvelope);
-    object.fields = Box::new(move || {
+    object.fields = Arc::new(move || {
         let composite_where_object = filter_objects::where_object_type(ctx, cf.typ());
-        let composite_equals_object = filter_objects::composite_equality_object(ctx, &cf);
+        let composite_equals_object = filter_objects::composite_equality_object(ctx, cf.clone());
 
         let mut fields = vec![
             input_field(
@@ -185,8 +183,8 @@ fn scalar_list_filter_type<'a>(ctx: BuilderContext<'a>, sf: ScalarFieldRef) -> I
 
     let mut object = init_input_object_type(ident.clone());
     object.require_exactly_one_field();
-    object.fields = Box::new(move || {
-        let mapped_nonlist_type = map_scalar_input_type(ctx, &sf.type_identifier(), false);
+    object.fields = Arc::new(move || {
+        let mapped_nonlist_type = map_scalar_input_type(ctx, sf.type_identifier(), false);
         let mapped_list_type = InputType::list(mapped_nonlist_type.clone());
         let mut fields: Vec<_> = equality_filters(ctx, mapped_list_type.clone(), !sf.is_required()).collect();
 
@@ -208,14 +206,14 @@ fn scalar_list_filter_type<'a>(ctx: BuilderContext<'a>, sf: ScalarFieldRef) -> I
 
 fn full_scalar_filter_type<'a>(
     ctx: BuilderContext<'a>,
-    typ: &TypeIdentifier,
-    native_type: Option<&NativeTypeInstance>,
+    typ: TypeIdentifier,
+    native_type: Option<NativeTypeInstance>,
     list: bool,
     nullable: bool,
     nested: bool,
     include_aggregates: bool,
 ) -> InputObjectType<'a> {
-    let native_type_name = native_type.map(|nt| nt.name());
+    let native_type_name = native_type.as_ref().map(|nt| nt.name());
     let scalar_type_name = typ.type_name(&ctx.internal_data_model.schema).into_owned();
     let type_name = ctx.connector.scalar_filter_name(scalar_type_name, native_type_name);
     let ident = Identifier::new_prisma(scalar_filter_name(
@@ -226,11 +224,10 @@ fn full_scalar_filter_type<'a>(
         include_aggregates,
     ));
 
-    let object = init_input_object_type(ident.clone());
+    let mut object = init_input_object_type(ident.clone());
 
-    let mapped_scalar_type = map_scalar_input_type(ctx, typ, list);
-
-    object.fields = Box::new(|| {
+    object.fields = Arc::new(move || {
+        let mapped_scalar_type = map_scalar_input_type(ctx, typ, list);
         let mut fields: Vec<_> = match typ {
             TypeIdentifier::String | TypeIdentifier::UUID => {
                 equality_filters(ctx, mapped_scalar_type.clone(), nullable)
@@ -284,7 +281,7 @@ fn full_scalar_filter_type<'a>(
         fields.push(not_filter_field(
             ctx,
             typ,
-            native_type,
+            native_type.clone(),
             mapped_scalar_type,
             nullable,
             include_aggregates,
@@ -295,7 +292,7 @@ fn full_scalar_filter_type<'a>(
             fields.push(aggregate_filter_field(
                 ctx,
                 aggregations::UNDERSCORE_COUNT,
-                &TypeIdentifier::Int,
+                TypeIdentifier::Int,
                 nullable,
                 list,
             ));
@@ -305,7 +302,7 @@ fn full_scalar_filter_type<'a>(
                 fields.push(aggregate_filter_field(
                     ctx,
                     aggregations::UNDERSCORE_AVG,
-                    &avg_type,
+                    avg_type,
                     nullable,
                     list,
                 ));
@@ -510,7 +507,7 @@ fn query_mode_field<'a>(ctx: BuilderContext<'a>, nested: bool) -> impl Iterator<
 fn aggregate_filter_field<'a>(
     ctx: BuilderContext<'a>,
     aggregation: impl Into<std::borrow::Cow<'static, str>>,
-    typ: &TypeIdentifier,
+    typ: TypeIdentifier,
     nullable: bool,
     list: bool,
 ) -> InputField<'a> {
@@ -528,8 +525,8 @@ fn map_avg_type_ident(typ: TypeIdentifier) -> TypeIdentifier {
 // Shorthand `not equals` filter input field, skips the nested object filter.
 fn not_filter_field<'a>(
     ctx: BuilderContext<'a>,
-    typ: &TypeIdentifier,
-    native_type: Option<&NativeTypeInstance>,
+    typ: TypeIdentifier,
+    native_type: Option<NativeTypeInstance>,
     mapped_scalar_type: InputType<'a>,
     is_nullable: bool,
     include_aggregates: bool,

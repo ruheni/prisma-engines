@@ -8,14 +8,14 @@ use std::ops::{Deref, DerefMut};
 
 pub(crate) type ParsedInputList = Vec<ParsedInputValue>;
 
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct ParsedInputMap {
-    pub tag: Option<ObjectTag>,
+#[derive(Debug, Clone, Default)]
+pub struct ParsedInputMap<'a> {
+    pub tag: Option<ObjectTag<'a>>,
     pub(crate) map: IndexMap<String, ParsedInputValue>,
 }
 
-impl ParsedInputMap {
-    pub fn set_tag(&mut self, tag: Option<ObjectTag>) {
+impl<'a> ParsedInputMap<'a> {
+    pub fn set_tag(&mut self, tag: Option<ObjectTag<'a>>) {
         self.tag = tag;
     }
 
@@ -36,7 +36,7 @@ impl ParsedInputMap {
     }
 }
 
-impl From<IndexMap<String, ParsedInputValue>> for ParsedInputMap {
+impl<'a> From<IndexMap<String, ParsedInputValue>> for ParsedInputMap<'a> {
     fn from(map: IndexMap<String, ParsedInputValue>) -> Self {
         Self { tag: None, map }
     }

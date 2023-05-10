@@ -38,7 +38,7 @@ type UncheckedItemsWithParents = IndexMap<Option<SelectionResult>, Vec<Item>>;
 /// Returns a map of pairs of (parent ID, response)
 pub(crate) fn serialize_internal(
     result: QueryResult,
-    field: &OutputField,
+    field: &OutputField<'_>,
     is_list: bool,
     query_schema: &QuerySchema,
 ) -> crate::Result<CheckedItemsWithParents> {
@@ -64,7 +64,7 @@ pub(crate) fn serialize_internal(
 }
 
 fn serialize_aggregations(
-    output_field: &OutputField,
+    output_field: &OutputField<'_>,
     record_aggregations: RecordAggregations,
     query_schema: &QuerySchema,
 ) -> crate::Result<CheckedItemsWithParents> {

@@ -18,12 +18,12 @@ pub fn update_record(
     mut field: ParsedField<'_>,
 ) -> QueryGraphBuilderResult<()> {
     // "where"
-    let where_arg: ParsedInputMap = field.arguments.lookup(args::WHERE).unwrap().value.try_into()?;
+    let where_arg: ParsedInputMap<'_> = field.arguments.lookup(args::WHERE).unwrap().value.try_into()?;
     let filter = extract_unique_filter(where_arg, &model)?;
 
     // "data"
     let data_argument = field.arguments.lookup(args::DATA).unwrap();
-    let data_map: ParsedInputMap = data_argument.value.try_into()?;
+    let data_map: ParsedInputMap<'_> = data_argument.value.try_into()?;
 
     let update_node = update_record_node(graph, connector_ctx, filter.clone(), model.clone(), data_map)?;
 
@@ -98,7 +98,7 @@ pub fn update_many_records(
 
     // "data"
     let data_argument = field.arguments.lookup(args::DATA).unwrap();
-    let data_map: ParsedInputMap = data_argument.value.try_into()?;
+    let data_map: ParsedInputMap<'_> = data_argument.value.try_into()?;
 
     if connector_ctx.relation_mode.uses_foreign_keys() {
         update_many_record_node(graph, connector_ctx, filter, model, data_map)?;
@@ -137,7 +137,7 @@ pub fn update_record_node<T: Clone>(
     connector_ctx: &ConnectorContext,
     filter: T,
     model: ModelRef,
-    data_map: ParsedInputMap,
+    data_map: ParsedInputMap<'_>,
 ) -> QueryGraphBuilderResult<NodeRef>
 where
     T: Into<Filter>,
@@ -170,7 +170,7 @@ pub fn update_many_record_node<T>(
     connector_ctx: &ConnectorContext,
     filter: T,
     model: ModelRef,
-    data_map: ParsedInputMap,
+    data_map: ParsedInputMap<'_>,
 ) -> QueryGraphBuilderResult<NodeRef>
 where
     T: Into<Filter>,

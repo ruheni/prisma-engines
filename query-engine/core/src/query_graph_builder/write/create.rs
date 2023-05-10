@@ -100,7 +100,7 @@ pub fn create_record_node(
     graph: &mut QueryGraph,
     connector_ctx: &ConnectorContext,
     model: ModelRef,
-    data_map: ParsedInputMap,
+    data_map: ParsedInputMap<'_>,
 ) -> QueryGraphBuilderResult<NodeRef> {
     let create_args = WriteArgsParser::from(&model, data_map)?;
     let mut args = create_args.args;

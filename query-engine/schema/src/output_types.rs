@@ -112,7 +112,7 @@ impl<'a> OutputType<'a> {
 
 pub struct ObjectType<'a> {
     pub(crate) identifier: Identifier,
-    pub(crate) fields: Box<dyn Fn() -> Vec<OutputField<'a>> + 'a>,
+    pub(crate) fields: Arc<dyn Fn() -> Vec<OutputField<'a>> + Send + Sync + 'a>,
 
     // Object types can directly map to models.
     pub(crate) model: Option<ModelId>,
@@ -128,6 +128,14 @@ impl Debug for ObjectType<'_> {
 }
 
 impl<'a> ObjectType<'a> {
+    pub(crate) fn new(identifier: Identifier, fields: impl Fn() -> Vec<OutputField<'a>> + Send + Sync + 'a) -> Self {
+        ObjectType {
+            identifier,
+            fields: Arc::new(fields),
+            model: None,
+        }
+    }
+
     pub fn identifier(&self) -> &Identifier {
         &self.identifier
     }

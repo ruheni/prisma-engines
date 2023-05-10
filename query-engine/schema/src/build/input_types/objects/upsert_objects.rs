@@ -32,7 +32,7 @@ fn nested_upsert_list_input_object<'a>(
     let ident = Identifier::new_prisma(IdentifierType::NestedUpsertManyInput(parent_field.related_field()));
 
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         vec![
             input_field(args::WHERE, vec![InputType::object(where_object.clone())], None),
             input_field(args::UPDATE, update_types.clone(), None),
@@ -57,22 +57,19 @@ fn nested_upsert_nonlist_input_object<'a>(
 
     let ident = Identifier::new_prisma(IdentifierType::NestedUpsertOneInput(parent_field.related_field()));
 
-    Some(input_object_type(
-        ident,
-        Box::new(move || {
-            let update_types =
-                update_one_objects::update_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
+    Some(input_object_type(ident, move || {
+        let update_types =
+            update_one_objects::update_one_input_types(ctx, related_model.clone(), Some(parent_field.clone()));
 
-            let mut fields = vec![
-                input_field(args::UPDATE, update_types, None),
-                input_field(args::CREATE, create_types.clone(), None),
-            ];
+        let mut fields = vec![
+            input_field(args::UPDATE, update_types, None),
+            input_field(args::CREATE, create_types.clone(), None),
+        ];
 
-            if ctx.has_feature(PreviewFeature::ExtendedWhereUnique) {
-                fields.push(where_argument(ctx, &related_model));
-            }
+        if ctx.has_feature(PreviewFeature::ExtendedWhereUnique) {
+            fields.push(where_argument(ctx, &related_model));
+        }
 
-            fields
-        }),
-    ))
+        fields
+    }))
 }

@@ -9,7 +9,7 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: Mo
     ObjectType {
         identifier: ident.clone(),
         model: Some(model.id),
-        fields: Box::new(move || {
+        fields: Arc::new(move || {
             // Model fields that can be grouped by value.
             let mut object_fields = scalar_output_fields(ctx, &model);
 
@@ -27,8 +27,8 @@ pub(crate) fn group_by_output_object_type<'a>(ctx: BuilderContext<'a>, model: Mo
                     model.fields().scalar(),
                     |_, _| OutputType::int(),
                     |mut obj| {
-                        obj.fields = Box::new(|| {
-                            let fields = &obj.fields;
+                        obj.fields = Arc::new(move || {
+                            let fields = obj.fields.clone();
                             let mut fields = fields();
                             fields.push(field("_all", vec![], OutputType::int(), None));
                             fields
@@ -102,7 +102,13 @@ fn scalar_output_fields<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> Vec<Ou
     fields
         .into_iter()
         .map(|f| {
-            field(f.name(), vec![], field::map_scalar_output_type_for_field(ctx, f), None).nullable_if(!f.is_required())
+            field(
+                f.name(),
+                vec![],
+                field::map_scalar_output_type_for_field(ctx, f.clone()),
+                None,
+            )
+            .nullable_if(!f.is_required())
         })
         .collect()
 }

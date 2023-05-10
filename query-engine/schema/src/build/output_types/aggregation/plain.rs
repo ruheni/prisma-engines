@@ -9,7 +9,7 @@ pub(crate) fn aggregation_object_type<'a>(ctx: BuilderContext<'a>, model: ModelR
 
     ObjectType {
         identifier: ident.clone(),
-        fields: Box::new(move || {
+        fields: Arc::new(move || {
             let mut object_fields = vec![];
 
             let non_list_nor_json_fields = collect_non_list_nor_json_fields(&model.clone().into());
@@ -25,8 +25,8 @@ pub(crate) fn aggregation_object_type<'a>(ctx: BuilderContext<'a>, model: ModelR
                     model.fields().scalar(),
                     |_, _| OutputType::int(),
                     |mut obj| {
-                        obj.fields = Box::new(|| {
-                            let fields = &obj.fields;
+                        obj.fields = Arc::new(move || {
+                            let fields = obj.fields.clone();
                             let mut fields = fields();
                             fields.push(field("_all", vec![], OutputType::int(), None));
                             fields

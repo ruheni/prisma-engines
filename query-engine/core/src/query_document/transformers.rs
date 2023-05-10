@@ -36,10 +36,10 @@ impl TryFrom<ParsedInputValue> for PrismaValue {
     }
 }
 
-impl TryFrom<ParsedInputValue> for ParsedInputMap {
+impl<'a> TryFrom<ParsedInputValue> for ParsedInputMap<'a> {
     type Error = ValidationError;
 
-    fn try_from(value: ParsedInputValue) -> QueryParserResult<ParsedInputMap> {
+    fn try_from(value: ParsedInputValue) -> QueryParserResult<ParsedInputMap<'a>> {
         match value {
             ParsedInputValue::Map(val) => Ok(val),
             v => Err(ValidationError::unexpected_runtime_error(format!(
@@ -49,10 +49,10 @@ impl TryFrom<ParsedInputValue> for ParsedInputMap {
     }
 }
 
-impl TryFrom<ParsedInputValue> for Option<ParsedInputMap> {
+impl<'a> TryFrom<ParsedInputValue> for Option<ParsedInputMap<'a>> {
     type Error = ValidationError;
 
-    fn try_from(value: ParsedInputValue) -> QueryParserResult<Option<ParsedInputMap>> {
+    fn try_from(value: ParsedInputValue) -> QueryParserResult<Option<ParsedInputMap<'a>>> {
         match value {
             ParsedInputValue::Single(PrismaValue::Null) => Ok(None),
             ParsedInputValue::Map(val) => Ok(Some(val)),

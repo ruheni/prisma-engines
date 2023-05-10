@@ -204,9 +204,9 @@ pub fn upsert_record(
 // 4. The unique field defined in where clause has the same value as defined in the create arguments
 fn can_use_connector_native_upsert(
     model: &ModelRef,
-    where_field: &ParsedInputMap,
-    create_argument: &ParsedInputMap,
-    update_argument: &ParsedInputMap,
+    where_field: &ParsedInputMap<'_>,
+    create_argument: &ParsedInputMap<'_>,
+    update_argument: &ParsedInputMap<'_>,
     selection: &Option<ParsedObject<'_>>,
     connector_ctx: &ConnectorContext,
 ) -> bool {
@@ -262,7 +262,7 @@ fn has_nested_selects(selection: &Option<ParsedObject<'_>>) -> bool {
 
 /// Make sure the unique fields defined in the where clause have the same values
 /// as in the create of the upsert.
-fn where_and_create_equal(field_name: &str, where_value: &ParsedInputValue, create_map: &ParsedInputMap) -> bool {
+fn where_and_create_equal(field_name: &str, where_value: &ParsedInputValue, create_map: &ParsedInputMap<'_>) -> bool {
     match where_value {
         ParsedInputValue::Map(inner_map) => inner_map
             .iter()

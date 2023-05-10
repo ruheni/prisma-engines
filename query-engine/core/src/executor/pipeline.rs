@@ -10,7 +10,11 @@ pub(crate) struct QueryPipeline<'conn> {
 }
 
 impl<'conn> QueryPipeline<'conn> {
-    pub(crate) fn new(graph: QueryGraph, interpreter: QueryInterpreter<'conn>, serializer: IrSerializer<'conn>) -> Self {
+    pub(crate) fn new(
+        graph: QueryGraph,
+        interpreter: QueryInterpreter<'conn>,
+        serializer: IrSerializer<'conn>,
+    ) -> Self {
         Self {
             graph,
             interpreter,
@@ -20,7 +24,7 @@ impl<'conn> QueryPipeline<'conn> {
 
     pub(crate) async fn execute(
         mut self,
-        query_schema: &QuerySchema,
+        query_schema: &'conn QuerySchema,
         trace_id: Option<String>,
     ) -> crate::Result<ResponseData> {
         let serializer = self.serializer;

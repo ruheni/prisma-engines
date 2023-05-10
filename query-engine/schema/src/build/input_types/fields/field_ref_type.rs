@@ -21,7 +21,7 @@ fn field_ref_input_object_type<'a>(ctx: BuilderContext<'a>, allow_type: InputTyp
     let ident = Identifier::new_prisma(field_ref_input_type_name(&allow_type, ctx));
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::FieldRefType(Box::new(allow_type)));
-    object.fields = Box::new(|| vec![input_field(filters::UNDERSCORE_REF, vec![InputType::string()], None)]);
+    object.fields = Arc::new(|| vec![input_field(filters::UNDERSCORE_REF, vec![InputType::string()], None)]);
     object
 }
 

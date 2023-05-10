@@ -7,7 +7,7 @@ pub(crate) fn composite_object_type<'a>(ctx: BuilderContext<'a>, composite: Comp
     ObjectType {
         identifier: Identifier::new_model(composite.name().to_owned()),
         model: None,
-        fields: Box::new(move || compute_composite_object_type_fields(ctx, &composite.clone())),
+        fields: Arc::new(move || compute_composite_object_type_fields(ctx, &composite.clone())),
     }
 }
 

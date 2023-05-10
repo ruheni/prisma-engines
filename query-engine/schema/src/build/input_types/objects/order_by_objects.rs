@@ -49,7 +49,7 @@ pub(crate) fn order_by_object_type<'a>(
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_at_most_one_field();
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         // Basic orderBy fields.
         let mut fields: Vec<_> = container
             .fields()
@@ -178,7 +178,7 @@ fn sort_nulls_object_type<'a>(ctx: BuilderContext<'a>) -> InputObjectType<'a> {
     let ident = Identifier::new_prisma("SortOrderInput");
 
     let mut input_object = init_input_object_type(ident.clone());
-    input_object.fields = Box::new(|| {
+    input_object.fields = Arc::new(|| {
         let sort_order_enum_type = sort_order_enum(ctx);
         let nulls_order_enum_type = nulls_order_enum(ctx);
 
@@ -218,7 +218,7 @@ fn order_by_object_type_aggregate<'a>(
 
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
         scalar_fields
             .clone()
@@ -237,7 +237,7 @@ fn order_by_to_many_aggregate_object_type<'a>(
     let ident = Identifier::new_prisma(IdentifierType::OrderByToManyAggregateInput(container.clone()));
     let mut input_object = init_input_object_type(ident.clone());
     input_object.require_exactly_one_field();
-    input_object.fields = Box::new(|| {
+    input_object.fields = Arc::new(|| {
         let sort_order_enum = InputType::Enum(sort_order_enum(ctx));
         vec![simple_input_field(aggregations::UNDERSCORE_COUNT, sort_order_enum, None).optional()]
     });
@@ -270,7 +270,7 @@ fn order_by_object_type_text_search<'a>(
     let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceInput(container.clone()));
 
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let fields_enum_type = InputType::enum_type(order_by_relevance_enum(
             ctx,
             container.clone(),

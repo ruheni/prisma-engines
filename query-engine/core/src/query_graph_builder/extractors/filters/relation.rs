@@ -6,7 +6,7 @@ use schema::constants::filters;
 use std::convert::TryInto;
 
 pub fn parse(filter_key: &str, field: &RelationFieldRef, input: ParsedInputValue) -> QueryGraphBuilderResult<Filter> {
-    let value: Option<ParsedInputMap> = input.try_into()?;
+    let value: Option<ParsedInputMap<'_>> = input.try_into()?;
 
     match (filter_key, value) {
         // Relation list filters

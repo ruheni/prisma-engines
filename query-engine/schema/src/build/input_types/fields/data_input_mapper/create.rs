@@ -40,10 +40,9 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         let cloned_typ = typ.clone();
         let ident = Identifier::new_prisma(IdentifierType::CreateOneScalarList(sf.clone()));
 
-        let mut input_object = input_object_type(
-            ident,
-            Box::new(move || vec![simple_input_field(operations::SET, cloned_typ.clone(), None)]),
-        );
+        let mut input_object = input_object_type(ident, move || {
+            vec![simple_input_field(operations::SET, cloned_typ.clone(), None)]
+        });
         input_object.require_exactly_one_field();
 
         let input_type = InputType::object(input_object);
@@ -61,7 +60,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
 
         let mut input_object = init_input_object_type(ident.clone());
         let cloned_rf = rf.clone();
-        input_object.fields = Box::new(move || {
+        input_object.fields = Arc::new(move || {
             let rf = &cloned_rf;
             let mut fields = vec![];
 
@@ -140,7 +139,7 @@ fn composite_create_envelope_object_type<'a>(ctx: BuilderContext<'a>, cf: Compos
     let mut input_object = init_input_object_type(ident);
     input_object.require_exactly_one_field();
     input_object.set_tag(ObjectTag::CompositeEnvelope);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let create_input = InputType::Object(composite_create_object_type(ctx, cf.clone()));
         let mut input_types = vec![create_input.clone()];
 
@@ -161,12 +160,9 @@ pub(crate) fn composite_create_object_type<'a>(ctx: BuilderContext<'a>, cf: Comp
     // It's called "Create" input because it's used across multiple create-type operations, not only "set".
     let ident = Identifier::new_prisma(IdentifierType::CompositeCreateInput(cf.typ()));
 
-    input_object_type(
-        ident,
-        Box::new(move || {
-            let mapper = CreateDataInputFieldMapper::new_checked();
-            let fields = cf.typ().fields().collect::<Vec<_>>();
-            mapper.map_all(ctx, fields)
-        }),
-    )
+    input_object_type(ident, move || {
+        let mapper = CreateDataInputFieldMapper::new_checked();
+        let fields = cf.typ().fields().collect::<Vec<_>>();
+        mapper.map_all(ctx, fields)
+    })
 }

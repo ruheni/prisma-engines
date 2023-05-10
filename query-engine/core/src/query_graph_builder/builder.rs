@@ -36,12 +36,12 @@ impl<'a> QueryGraphBuilder<'a> {
     fn build_internal(
         &self,
         selection: Selection,
-        root_object: &'a ObjectType, // Either the query or mutation object.
+        root_object: ObjectType<'a>, // Either the query or mutation object.
     ) -> QueryGraphBuilderResult<(QueryGraph, IrSerializer<'a>)> {
         let mut selections = vec![selection];
         let mut parsed_object = QueryDocumentParser::new(crate::executor::get_request_now()).parse(
             &selections,
-            root_object,
+            &root_object,
             self.query_schema,
         )?;
 
@@ -106,7 +106,7 @@ impl<'a> QueryGraphBuilder<'a> {
         Ok(graph)
     }
 
-    fn derive_serializer(selection: &Selection, field: &'a OutputField) -> IrSerializer<'a> {
+    fn derive_serializer(selection: &Selection, field: &OutputField<'a>) -> IrSerializer<'a> {
         IrSerializer {
             key: selection
                 .alias()

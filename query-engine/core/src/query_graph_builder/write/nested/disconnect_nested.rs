@@ -26,7 +26,7 @@ pub fn nested_disconnect(
         let filters: Vec<Filter> = utils::coerce_vec(value)
             .into_iter()
             .map(|value: ParsedInputValue| {
-                let value: ParsedInputMap = value.try_into()?;
+                let value: ParsedInputMap<'_> = value.try_into()?;
                 extract_unique_filter(value, child_model)
             })
             .collect::<QueryGraphBuilderResult<Vec<Filter>>>()?
@@ -45,7 +45,7 @@ pub fn nested_disconnect(
 
                 Filter::empty()
             } else {
-                let value: ParsedInputMap = value.try_into()?;
+                let value: ParsedInputMap<'_> = value.try_into()?;
 
                 extract_filter(value, child_model)?
             }
@@ -56,7 +56,7 @@ pub fn nested_disconnect(
                 let filters = utils::coerce_vec(value)
                     .into_iter()
                     .map(|value: ParsedInputValue| {
-                        let value: ParsedInputMap = value.try_into()?;
+                        let value: ParsedInputMap<'_> = value.try_into()?;
                         extract_unique_filter(value, child_model)
                     })
                     .collect::<QueryGraphBuilderResult<Vec<Filter>>>()?

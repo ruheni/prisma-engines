@@ -80,7 +80,7 @@ pub(crate) fn aggregation_relation_field<'a, F, G>(
     object_mapper: G,
 ) -> Option<OutputField<'a>>
 where
-    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a> + 'static,
+    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a> + Send + Sync + 'static,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     if fields.is_empty() {
@@ -107,7 +107,7 @@ fn map_field_aggration_relation<'a, F, G>(
     object_mapper: G,
 ) -> ObjectType<'a>
 where
-    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a> + 'static,
+    F: Fn(BuilderContext<'a>, &RelationFieldRef) -> OutputType<'a> + Send + Sync + 'static,
     G: Fn(ObjectType<'a>) -> ObjectType<'a>,
 {
     let ident = Identifier::new_prisma(format!("{}CountOutputType", capitalize(model.name())));
@@ -115,7 +115,7 @@ where
     object_mapper(ObjectType {
         identifier: ident,
         model: None,
-        fields: Box::new(move || {
+        fields: Arc::new(move || {
             fields
                 .clone()
                 .into_iter()

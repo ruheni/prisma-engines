@@ -29,7 +29,7 @@ pub fn connect_nested_query(
     connector_ctx: &ConnectorContext,
     parent: NodeRef,
     parent_relation_field: RelationFieldRef,
-    data_map: ParsedInputMap,
+    data_map: ParsedInputMap<'_>,
 ) -> QueryGraphBuilderResult<()> {
     let child_model = parent_relation_field.related_model();
 

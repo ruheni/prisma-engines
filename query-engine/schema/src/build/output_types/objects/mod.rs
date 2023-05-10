@@ -7,7 +7,7 @@ use constants::output_fields::*;
 pub(crate) fn affected_records_object_type<'a>() -> ObjectType<'a> {
     ObjectType {
         identifier: Identifier::new_prisma("AffectedRowsOutput".to_owned()),
-        fields: Box::new(|| vec![field(AFFECTED_COUNT, vec![], OutputType::int(), None)]),
+        fields: Arc::new(|| vec![field(AFFECTED_COUNT, vec![], OutputType::int(), None)]),
         model: None,
     }
 }

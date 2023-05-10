@@ -10,13 +10,13 @@ use std::convert::TryInto;
 #[derive(Debug)]
 pub struct WriteArgsParser {
     pub args: WriteArgs,
-    pub nested: Vec<(RelationFieldRef, ParsedInputMap)>,
+    pub nested: Vec<(RelationFieldRef, ParsedInputMap<'_>)>,
 }
 
 impl WriteArgsParser {
     /// Creates a new set of WriteArgsParser. Expects the parsed input map from the respective data key, not the enclosing map.
     /// E.g.: { data: { THIS MAP } } from the `data` argument of a write query.
-    pub fn from(model: &ModelRef, data_map: ParsedInputMap) -> QueryGraphBuilderResult<Self> {
+    pub fn from(model: &ModelRef, data_map: ParsedInputMap<'_>) -> QueryGraphBuilderResult<Self> {
         data_map.into_iter().try_fold(
             WriteArgsParser {
                 args: WriteArgs::new_empty(crate::executor::get_request_now()),
@@ -133,7 +133,7 @@ fn parse_composite_writes(
 
 fn parse_composite_envelope(
     cf: &CompositeFieldRef,
-    envelope: ParsedInputMap,
+    envelope: ParsedInputMap<'_>,
     path: &mut Vec<DatasourceFieldName>,
 ) -> QueryGraphBuilderResult<WriteOperation> {
     let (op, value) = envelope.into_iter().next().unwrap();
@@ -155,13 +155,13 @@ fn parse_composite_envelope(
 
 fn parse_composite_update_many(
     cf: &CompositeFieldRef,
-    mut value: ParsedInputMap,
+    mut value: ParsedInputMap<'_>,
     path: &mut [DatasourceFieldName],
 ) -> QueryGraphBuilderResult<WriteOperation> {
-    let where_map: ParsedInputMap = value.remove(args::WHERE).unwrap().try_into()?;
+    let where_map: ParsedInputMap<'_> = value.remove(args::WHERE).unwrap().try_into()?;
     let filter = extract_filter(where_map, cf.typ())?;
 
-    let update_map: ParsedInputMap = value.remove(args::DATA).unwrap().try_into()?;
+    let update_map: ParsedInputMap<'_> = value.remove(args::DATA).unwrap().try_into()?;
     let update = parse_composite_updates(cf, update_map, path)?
         .try_into_composite()
         .unwrap();
@@ -171,9 +171,9 @@ fn parse_composite_update_many(
 
 fn parse_composite_delete_many(
     cf: &CompositeFieldRef,
-    mut value: ParsedInputMap,
+    mut value: ParsedInputMap<'_>,
 ) -> QueryGraphBuilderResult<WriteOperation> {
-    let where_map: ParsedInputMap = value.remove(args::WHERE).unwrap().try_into()?;
+    let where_map: ParsedInputMap<'_> = value.remove(args::WHERE).unwrap().try_into()?;
     let filter = extract_filter(where_map, cf.typ())?;
 
     Ok(WriteOperation::composite_delete_many(filter))
@@ -181,12 +181,12 @@ fn parse_composite_delete_many(
 
 fn parse_composite_upsert(
     cf: &CompositeFieldRef,
-    mut value: ParsedInputMap,
+    mut value: ParsedInputMap<'_>,
     path: &mut Vec<DatasourceFieldName>,
 ) -> QueryGraphBuilderResult<WriteOperation> {
     let set = value.remove(operations::SET).unwrap();
     let set = parse_composite_writes(cf, set, path)?.try_into_composite().unwrap();
-    let update: ParsedInputMap = value.remove(operations::UPDATE).unwrap().try_into()?;
+    let update: ParsedInputMap<'_> = value.remove(operations::UPDATE).unwrap().try_into()?;
     let update = parse_composite_updates(cf, update, path)?.try_into_composite().unwrap();
 
     Ok(WriteOperation::composite_upsert(set, update))
@@ -200,7 +200,7 @@ fn parse_composite_unset(pv: PrismaValue) -> WriteOperation {
 
 fn parse_composite_updates(
     cf: &CompositeFieldRef,
-    map: ParsedInputMap,
+    map: ParsedInputMap<'_>,
     path: &mut [DatasourceFieldName],
 ) -> QueryGraphBuilderResult<WriteOperation> {
     let mut writes = vec![];
@@ -228,7 +228,7 @@ fn parse_composite_updates(
     Ok(WriteOperation::composite_update(writes))
 }
 
-fn extract_scalar_list_ops(map: ParsedInputMap) -> QueryGraphBuilderResult<WriteOperation> {
+fn extract_scalar_list_ops(map: ParsedInputMap<'_>) -> QueryGraphBuilderResult<WriteOperation> {
     let (operation, value) = map.into_iter().next().unwrap();
     let pv: PrismaValue = value.try_into()?;
 

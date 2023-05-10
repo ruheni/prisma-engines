@@ -7,10 +7,10 @@ use fields::*;
 use prisma_models::ScalarFieldRef;
 
 fn map_scalar_input_type_for_field<'a>(ctx: BuilderContext<'a>, field: &ScalarFieldRef) -> InputType<'a> {
-    map_scalar_input_type(ctx, &field.type_identifier(), field.is_list())
+    map_scalar_input_type(ctx, field.type_identifier(), field.is_list())
 }
 
-fn map_scalar_input_type<'a>(ctx: BuilderContext<'a>, typ: &TypeIdentifier, list: bool) -> InputType<'a> {
+fn map_scalar_input_type<'a>(ctx: BuilderContext<'a>, typ: TypeIdentifier, list: bool) -> InputType<'a> {
     let typ = match typ {
         TypeIdentifier::String => InputType::string(),
         TypeIdentifier::Int => InputType::int(),
@@ -20,7 +20,7 @@ fn map_scalar_input_type<'a>(ctx: BuilderContext<'a>, typ: &TypeIdentifier, list
         TypeIdentifier::UUID => InputType::uuid(),
         TypeIdentifier::DateTime => InputType::date_time(),
         TypeIdentifier::Json => InputType::json(),
-        TypeIdentifier::Enum(id) => InputType::enum_type(map_schema_enum_type(ctx, *id)),
+        TypeIdentifier::Enum(id) => InputType::enum_type(map_schema_enum_type(ctx, id)),
         TypeIdentifier::Xml => InputType::xml(),
         TypeIdentifier::Bytes => InputType::bytes(),
         TypeIdentifier::BigInt => InputType::bigint(),

@@ -50,8 +50,8 @@ pub fn nested_update(
             // We have to have a single record filter in "where".
             // This is used to read the children first, to make sure they're actually connected.
             // The update itself operates on the record found by the read check.
-            let mut map: ParsedInputMap = value.try_into()?;
-            let where_arg: ParsedInputMap = map.remove(args::WHERE).unwrap().try_into()?;
+            let mut map: ParsedInputMap<'_> = value.try_into()?;
+            let where_arg: ParsedInputMap<'_> = map.remove(args::WHERE).unwrap().try_into()?;
 
             let filter = extract_unique_filter(where_arg, child_model)?;
             let data_value = map.remove(args::DATA).unwrap();
@@ -62,7 +62,7 @@ pub fn nested_update(
                 // If the update input is of shape { where?: WhereInput, data: DataInput }
                 ParsedInputValue::Map(mut map) if map.is_nested_to_one_update_envelope() => {
                     let filter = if let Some(where_arg) = map.remove(args::WHERE) {
-                        let where_arg: ParsedInputMap = where_arg.try_into()?;
+                        let where_arg: ParsedInputMap<'_> = where_arg.try_into()?;
 
                         extract_filter(where_arg, child_model)?
                     } else {
@@ -132,11 +132,11 @@ pub fn nested_update_many(
     child_model: &ModelRef,
 ) -> QueryGraphBuilderResult<()> {
     for value in utils::coerce_vec(value) {
-        let mut map: ParsedInputMap = value.try_into()?;
+        let mut map: ParsedInputMap<'_> = value.try_into()?;
         let where_arg = map.remove(args::WHERE).unwrap();
         let data_value = map.remove(args::DATA).unwrap();
-        let data_map: ParsedInputMap = data_value.try_into()?;
-        let where_map: ParsedInputMap = where_arg.try_into()?;
+        let data_map: ParsedInputMap<'_> = data_value.try_into()?;
+        let where_map: ParsedInputMap<'_> = where_arg.try_into()?;
         let child_model_identifier = parent_relation_field.related_model().primary_identifier();
 
         let filter = extract_filter(where_map, child_model)?;

@@ -3,25 +3,12 @@ use fmt::Debug;
 use prisma_models::{prelude::ParentContainer, DefaultKind};
 use std::{borrow::Cow, boxed::Box, fmt};
 
+#[derive(Clone)]
 pub struct InputObjectType<'a> {
     pub identifier: Identifier,
     pub constraints: InputObjectTypeConstraints,
-    pub(crate) fields: Box<dyn Fn() -> Vec<InputField<'a>> + 'a>,
+    pub(crate) fields: Arc<dyn Fn() -> Vec<InputField<'a>> + Send + Sync + 'a>,
     pub(crate) tag: Option<ObjectTag<'a>>,
-}
-
-impl<'a> Clone for InputObjectType<'a> {
-    fn clone(&self) -> Self {
-        InputObjectType {
-            identifier: self.identifier.clone(),
-            constraints: self.constraints.clone(),
-            tag: self.tag.clone(),
-            fields: Box::new(move || {
-                let f = &self.fields;
-                f()
-            }),
-        }
-    }
 }
 
 /// Object tags help differentiating objects during parsing / raw input data processing,
@@ -69,8 +56,8 @@ impl<'a> InputObjectType<'a> {
         self.tag.as_ref()
     }
 
-    pub(crate) fn set_fields(&mut self, fields: Box<dyn Fn() -> Vec<InputField<'a>> + 'a>) {
-        self.fields = fields;
+    pub(crate) fn set_fields(&mut self, fields: impl Fn() -> Vec<InputField<'a>> + Send + Sync + 'a) {
+        self.fields = Arc::new(fields);
     }
 
     /// True if fields are empty, false otherwise.

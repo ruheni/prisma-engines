@@ -4,10 +4,10 @@ use prisma_models::{walkers, DefaultKind};
 /// Input object type convenience wrapper function.
 pub(crate) fn input_object_type<'a>(
     ident: Identifier,
-    fields: Box<dyn Fn() -> Vec<InputField<'a>> + 'a>,
+    fields: impl Fn() -> Vec<InputField<'a>> + Send + Sync + 'a,
 ) -> InputObjectType<'a> {
     let mut object_type = init_input_object_type(ident);
-    object_type.fields = fields;
+    object_type.fields = Arc::new(fields);
     object_type
 }
 
@@ -16,7 +16,7 @@ pub(crate) fn init_input_object_type<'a>(ident: Identifier) -> InputObjectType<'
     InputObjectType {
         identifier: ident,
         constraints: InputObjectTypeConstraints::default(),
-        fields: Box::new(|| Vec::new()),
+        fields: Arc::new(|| Vec::new()),
         tag: None,
     }
 }

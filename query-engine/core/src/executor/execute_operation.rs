@@ -252,11 +252,11 @@ async fn execute_in_tx(
 }
 
 // Simplest execution on anything that's a ConnectionLike. Caller decides handling of connections and transactions.
-async fn execute_on(
-    conn: &mut dyn ConnectionLike,
+async fn execute_on<'a>(
+    conn: &'a mut dyn ConnectionLike,
     graph: QueryGraph,
-    serializer: IrSerializer<'_>,
-    query_schema: &QuerySchema,
+    serializer: IrSerializer<'a>,
+    query_schema: &'a QuerySchema,
     trace_id: Option<String>,
 ) -> crate::Result<ResponseData> {
     increment_counter!(PRISMA_CLIENT_QUERIES_TOTAL);

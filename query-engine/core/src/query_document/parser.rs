@@ -23,7 +23,7 @@ impl QueryDocumentParser {
     pub fn parse<'a>(
         &self,
         selections: &[Selection],
-        schema_object: &'a ObjectType,
+        schema_object: &'a ObjectType<'a>,
         query_schema: &'a QuerySchema,
     ) -> QueryParserResult<ParsedObject<'a>> {
         self.parse_object(
@@ -45,7 +45,7 @@ impl QueryDocumentParser {
         selection_path: Path,
         argument_path: Path,
         selections: &[Selection],
-        schema_object: &'a ObjectType,
+        schema_object: &'a ObjectType<'a>,
         query_schema: &'a QuerySchema,
     ) -> QueryParserResult<ParsedObject<'a>> {
         if selections.is_empty() {

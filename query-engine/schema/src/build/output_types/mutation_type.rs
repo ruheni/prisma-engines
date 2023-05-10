@@ -9,7 +9,7 @@ pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
     ObjectType {
         identifier: Identifier::new_prisma("Mutation".to_owned()),
         model: None,
-        fields: Box::new(|| {
+        fields: Arc::new(|| {
             let mut fields = Vec::with_capacity(ctx.internal_data_model.schema.db.models_count());
 
             for model in ctx.internal_data_model.models() {

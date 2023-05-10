@@ -55,7 +55,7 @@ pub(crate) fn create_many_object_type<'a>(
     ));
 
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let filtered_fields = filter_create_many_fields(ctx, model.clone(), parent_field.clone());
         let field_mapper = CreateDataInputFieldMapper::new_checked();
         field_mapper.map_all(ctx, filtered_fields)

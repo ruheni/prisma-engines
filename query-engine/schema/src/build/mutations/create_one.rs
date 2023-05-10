@@ -66,7 +66,7 @@ fn checked_create_input_type<'a>(
     ));
 
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let filtered_fields = filter_checked_create_fields(&model, parent_field.clone());
         let field_mapper = CreateDataInputFieldMapper::new_checked();
         field_mapper.map_all(ctx, filtered_fields)
@@ -92,7 +92,7 @@ fn unchecked_create_input_type<'a>(
     ));
 
     let mut input_object = init_input_object_type(ident);
-    input_object.fields = Box::new(move || {
+    input_object.fields = Arc::new(move || {
         let filtered_fields = filter_unchecked_create_fields(&model, parent_field.as_ref());
         let field_mapper = CreateDataInputFieldMapper::new_unchecked();
         field_mapper.map_all(ctx, filtered_fields)
