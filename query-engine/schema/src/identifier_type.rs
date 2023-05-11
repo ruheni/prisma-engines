@@ -8,6 +8,7 @@ use prisma_models::{ast::FieldArity, prelude::*, *};
 pub enum IdentifierType {
     CheckedCreateInput(Model, Option<RelationField>),
     CheckedUpdateManyInput(Model),
+    UncheckedUpdateManyInput(Model, Option<RelationField>),
     CheckedUpdateOneInput(Model, Option<RelationField>),
     CompositeCreateEnvelopeInput(CompositeType, FieldArity),
     CompositeCreateInput(CompositeType),
@@ -268,6 +269,14 @@ impl std::fmt::Display for IdentifierType {
                 _ => format!("{}CreateManyInput", model.name()),
             },
             IdentifierType::Raw(name) => name.to_string(),
+            IdentifierType::UncheckedUpdateManyInput(model, related_field) => match related_field {
+                Some(rf) => format!(
+                    "{}UncheckedUpdateManyWithout{}Input",
+                    model.name(),
+                    capitalize(rf.name())
+                ),
+                _ => format!("{}UncheckedUpdateManyInput", model.name()),
+            },
         };
 
         f.write_str(&name)
