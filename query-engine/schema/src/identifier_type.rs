@@ -37,7 +37,7 @@ pub enum IdentifierType {
     ToManyCompositeFilterInput(CompositeType),
     ToManyRelationFilterInput(Model),
     ToOneCompositeFilterInput(CompositeType, FieldArity),
-    ToOneRelationFilterInput(Model),
+    ToOneRelationFilterInput(Model, FieldArity),
     TransactionIsolationLevel,
     UncheckedCreateInput(Model, Option<RelationField>),
     UncheckedUpdateOneInput(Model, Option<RelationField>),
@@ -170,8 +170,10 @@ impl std::fmt::Display for IdentifierType {
             IdentifierType::ToManyRelationFilterInput(related_model) => {
                 format!("{}ListRelationFilter", capitalize(related_model.name()))
             }
-            IdentifierType::ToOneRelationFilterInput(related_model) => {
-                format!("{}RelationFilter", capitalize(related_model.name()))
+            IdentifierType::ToOneRelationFilterInput(related_model, arity) => {
+                let nullable = if arity.is_optional() { "Nullable" } else { "" };
+
+                format!("{}{}RelationFilter", capitalize(related_model.name()), nullable)
             }
             IdentifierType::ToOneCompositeFilterInput(ct, arity) => {
                 let nullable = if arity.is_optional() { "Nullable" } else { "" };
