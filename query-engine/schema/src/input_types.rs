@@ -62,10 +62,6 @@ impl<'a> InputObjectType<'a> {
         self.tag.as_ref()
     }
 
-    pub(crate) fn set_fields(&mut self, fields: impl Fn() -> Vec<InputField<'a>> + Send + Sync + 'a) {
-        self.fields = Arc::new(fields);
-    }
-
     /// True if fields are empty, false otherwise.
     pub(crate) fn is_empty(&self) -> bool {
         self.get_fields().len() == 0

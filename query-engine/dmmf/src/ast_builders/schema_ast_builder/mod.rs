@@ -170,7 +170,7 @@ trait AsRenderer<'a> {
 
 impl<'a> AsRenderer<'a> for &'a QuerySchema {
     fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
-        Box::new(DmmfSchemaRenderer::new(self))
+        Box::new(DmmfSchemaRenderer::new(*self))
     }
 
     fn is_already_rendered(&self, _ctx: &RenderContext) -> bool {

@@ -179,7 +179,7 @@ impl QueryDocumentParser {
                             selection_path.clone(),
                             argument_path,
                             value,
-                            input_field_ref.field_types(),
+                            input_field_ref.field_types().to_owned(),
                             query_schema,
                         )
                         .map(|value| ParsedArgument {
@@ -210,13 +210,13 @@ impl QueryDocumentParser {
         selection_path: Path,
         argument_path: Path,
         value: ArgumentValue,
-        possible_input_types: &[InputType<'a>],
+        possible_input_types: Vec<InputType<'a>>,
         query_schema: &'a QuerySchema,
     ) -> QueryParserResult<ParsedInputValue<'a>> {
         let mut parse_results = vec![];
 
         for input_type in possible_input_types {
-            let result = match (value.clone(), input_type) {
+            let result = match (value.clone(), &input_type) {
                 // With the JSON protocol, JSON values are sent as deserialized values.
                 // This means JSON can match with pretty much anything. A string, an int, an object, an array.
                 // This is an early catch-all.
@@ -225,7 +225,7 @@ impl QueryDocumentParser {
                 (value, InputType::Scalar(ScalarType::Json))
                     if value.should_be_parsed_as_json() && get_engine_protocol().is_json() =>
                 {
-                    Ok(ParsedInputValue::<'a>::Single(self.to_json(
+                    Ok(ParsedInputValue::Single(self.to_json(
                         &selection_path,
                         &argument_path,
                         &value,
@@ -248,12 +248,12 @@ impl QueryDocumentParser {
                     })?;
                     let json_list = self.parse_json_list_from_value(&selection_path, &argument_path, json_val)?;
 
-                    Ok(ParsedInputValue::<'a>::Single(json_list))
+                    Ok(ParsedInputValue::Single(json_list))
                 }
                 (ArgumentValue::Scalar(pv), input_type) => match (pv, input_type) {
                     // Null handling
                     (PrismaValue::Null, InputType::Scalar(ScalarType::Null)) => {
-                        Ok(ParsedInputValue::<'a>::Single(PrismaValue::Null))
+                        Ok(ParsedInputValue::Single(PrismaValue::Null))
                     }
                     (PrismaValue::Null, _) => Err(ValidationError::required_argument_missing(
                         selection_path.segments(),
@@ -268,20 +268,20 @@ impl QueryDocumentParser {
                             pv,
                             *st,
                             &value,
-                            input_type,
+                            &input_type,
                             query_schema,
                         )
-                        .map(ParsedInputValue::<'a>::Single),
+                        .map(ParsedInputValue::Single),
 
                     // Enum handling
                     (pv @ PrismaValue::Enum(_), InputType::Enum(et)) => {
-                        self.parse_enum(&selection_path, &argument_path, pv, et)
+                        self.parse_enum(&selection_path, &argument_path, pv, &et)
                     }
                     (pv @ PrismaValue::String(_), InputType::Enum(et)) => {
-                        self.parse_enum(&selection_path, &argument_path, pv, et)
+                        self.parse_enum(&selection_path, &argument_path, pv, &et)
                     }
                     (pv @ PrismaValue::Boolean(_), InputType::Enum(et)) => {
-                        self.parse_enum(&selection_path, &argument_path, pv, et)
+                        self.parse_enum(&selection_path, &argument_path, pv, &et)
                     }
                     // Invalid combinations
                     _ => Err(ValidationError::invalid_argument_type(
@@ -289,7 +289,7 @@ impl QueryDocumentParser {
                         argument_path.segments(),
                         conversions::input_type_to_argument_description(
                             argument_path.last().unwrap_or_default().to_string(),
-                            input_type,
+                            &input_type,
                             query_schema,
                         ),
                         conversions::argument_value_to_type_name(&value),
@@ -298,8 +298,8 @@ impl QueryDocumentParser {
 
                 // List handling.
                 (ArgumentValue::List(values), InputType::List(l)) => self
-                    .parse_list(&selection_path, &argument_path, values.clone(), todo!(), query_schema)
-                    .map(ParsedInputValue::<'a>::List),
+                    .parse_list(&selection_path, &argument_path, values.clone(), l.as_ref(), query_schema)
+                    .map(ParsedInputValue::List),
 
                 // Object handling
                 (ArgumentValue::Object(o) | ArgumentValue::FieldRef(o), InputType::Object(obj)) => self
@@ -307,10 +307,10 @@ impl QueryDocumentParser {
                         selection_path.clone(),
                         argument_path.clone(),
                         o.clone(),
-                        todo!(), // obj,
+                        obj,
                         query_schema,
                     )
-                    .map(ParsedInputValue::<'a>::Map),
+                    .map(ParsedInputValue::Map),
 
                 // Invalid combinations
                 _ => Err(ValidationError::invalid_argument_type(
@@ -318,7 +318,7 @@ impl QueryDocumentParser {
                     argument_path.segments(),
                     conversions::input_type_to_argument_description(
                         argument_path.last().unwrap_or_default().to_string(),
-                        input_type,
+                        &input_type,
                         query_schema,
                     ),
                     conversions::argument_value_to_type_name(&value),
@@ -592,7 +592,7 @@ impl QueryDocumentParser {
                     selection_path.clone(),
                     argument_path.clone(),
                     val,
-                    &[value_type.clone()],
+                    vec![value_type.clone()],
                     query_schema,
                 )
             })
@@ -682,7 +682,7 @@ impl QueryDocumentParser {
                             selection_path.clone(),
                             argument_path,
                             default_pv.into(),
-                            field.field_types(),
+                            field.field_types().to_owned(),
                             query_schema,
                         ) {
                             Ok(value) => Some(Ok((field.name.clone().into_owned(), value))),
@@ -722,7 +722,7 @@ impl QueryDocumentParser {
                     selection_path.clone(),
                     argument_path,
                     value,
-                    field.field_types(),
+                    field.field_types().to_owned(),
                     query_schema,
                 )?;
 
