@@ -86,7 +86,6 @@ fn to_many_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFie
 }
 
 fn to_one_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFieldRef) -> InputObjectTypeId {
-    let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
     let ident = Identifier::new_prisma(IdentifierType::ToOneRelationFilterInput(rf.related_model(), rf.arity()));
 
     return_cached_input!(ctx, &ident);
@@ -94,6 +93,7 @@ fn to_one_relation_filter_object(ctx: &mut BuilderContext<'_>, rf: &RelationFiel
     let mut object = init_input_object_type(ident.clone());
     object.set_tag(ObjectTag::RelationEnvelope);
     let id = ctx.cache_input_type(ident, object);
+    let related_input_type = filter_objects::where_object_type(ctx, &rf.related_model());
 
     let fields = vec![
         input_field(ctx, filters::IS, InputType::object(related_input_type), None)
