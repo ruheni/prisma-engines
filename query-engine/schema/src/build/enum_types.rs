@@ -23,7 +23,7 @@ pub(crate) fn map_schema_enum_type(ctx: BuilderContext<'_>, enum_id: ast::EnumId
     EnumType::database(ident, schema_enum)
 }
 
-pub(crate) fn model_field_enum(ctx: BuilderContext<'_>, model: &ModelRef) -> EnumType {
+pub(crate) fn model_field_enum(model: &ModelRef) -> EnumType {
     let ident = Identifier::new_prisma(IdentifierType::ScalarFieldEnum(model.clone()));
 
     let values = model
@@ -36,7 +36,7 @@ pub(crate) fn model_field_enum(ctx: BuilderContext<'_>, model: &ModelRef) -> Enu
     EnumType::field_ref(ident.clone(), values)
 }
 
-pub(crate) fn json_null_filter_enum(ctx: BuilderContext<'_>) -> EnumType {
+pub(crate) fn json_null_filter_enum() -> EnumType {
     let ident = Identifier::new_prisma(json_null::FILTER_ENUM_NAME);
 
     EnumType::string(
@@ -49,7 +49,7 @@ pub(crate) fn json_null_filter_enum(ctx: BuilderContext<'_>) -> EnumType {
     )
 }
 
-pub(crate) fn json_null_input_enum(ctx: BuilderContext<'_>, nullable: bool) -> EnumType {
+pub(crate) fn json_null_input_enum(nullable: bool) -> EnumType {
     let ident = if nullable {
         Identifier::new_prisma(json_null::NULLABLE_INPUT_ENUM_NAME)
     } else {
@@ -66,16 +66,12 @@ pub(crate) fn json_null_input_enum(ctx: BuilderContext<'_>, nullable: bool) -> E
     }
 }
 
-pub(crate) fn order_by_relevance_enum(
-    ctx: BuilderContext<'_>,
-    container: ParentContainer,
-    values: Vec<String>,
-) -> EnumType {
+pub(crate) fn order_by_relevance_enum(container: ParentContainer, values: Vec<String>) -> EnumType {
     let ident = Identifier::new_prisma(IdentifierType::OrderByRelevanceFieldEnum(container));
     EnumType::string(ident, values)
 }
 
-pub(crate) fn query_mode_enum(ctx: BuilderContext<'_>) -> EnumType {
+pub(crate) fn query_mode_enum() -> EnumType {
     let ident = Identifier::new_prisma("QueryMode");
     EnumType::string(
         ident,

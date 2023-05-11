@@ -66,30 +66,39 @@ impl QuerySchema {
     ) -> Self {
         let features = internal_data_model.schema.configuration.preview_features();
         let relation_mode = internal_data_model.schema.relation_mode();
+
+        let mut query_schema = QuerySchema {
+            preview_features,
+            enable_raw_queries,
+            query_map: Default::default(),
+            mutation_map: Default::default(),
+            internal_data_model,
+            connector,
+            context: ConnectorContext::new(connector.capabilities(), features, relation_mode),
+        };
+
         let mut query_map: HashMap<QueryInfo, usize> = HashMap::new();
         let mut mutation_map: HashMap<QueryInfo, usize> = HashMap::new();
 
-        for (field_idx, field) in crate::build::query_type::build(todo!()).get_fields().enumerate() {
+        for (field_idx, field) in crate::build::query_type::build(&query_schema).get_fields().enumerate() {
             if let Some(query_info) = field.query_info() {
                 query_map.insert(query_info.to_owned(), field_idx);
             }
         }
 
-        for (field_idx, field) in crate::build::mutation_type::build(todo!()).get_fields().enumerate() {
+        for (field_idx, field) in crate::build::mutation_type::build(&query_schema)
+            .get_fields()
+            .enumerate()
+        {
             if let Some(query_info) = field.query_info() {
                 mutation_map.insert(query_info.to_owned(), field_idx);
             }
         }
 
-        QuerySchema {
-            preview_features,
-            enable_raw_queries,
-            query_map,
-            mutation_map,
-            internal_data_model,
-            connector,
-            context: ConnectorContext::new(connector.capabilities(), features, relation_mode),
-        }
+        query_schema.query_map = query_map;
+        query_schema.mutation_map = mutation_map;
+
+        query_schema
     }
 
     pub(crate) fn supports_any(&self, capabilities: &[ConnectorCapability]) -> bool {

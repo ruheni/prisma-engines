@@ -298,7 +298,13 @@ impl QueryDocumentParser {
 
                 // List handling.
                 (ArgumentValue::List(values), InputType::List(l)) => self
-                    .parse_list(&selection_path, &argument_path, values.clone(), l.as_ref(), query_schema)
+                    .parse_list(
+                        &selection_path,
+                        &argument_path,
+                        values.clone(),
+                        l,
+                        query_schema,
+                    )
                     .map(ParsedInputValue::List),
 
                 // Object handling

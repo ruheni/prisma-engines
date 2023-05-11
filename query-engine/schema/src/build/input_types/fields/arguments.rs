@@ -123,7 +123,7 @@ pub(crate) fn relation_to_many_selection_arguments<'a>(
     ];
 
     if include_distinct {
-        let input_type = InputType::list(InputType::Enum(model_field_enum(ctx, &model)));
+        let input_type = InputType::list(InputType::Enum(model_field_enum(&model)));
         args.push(input_field(args::DISTINCT.to_owned(), vec![input_type], None).optional());
     }
 
@@ -160,7 +160,7 @@ pub(crate) fn order_by_argument<'a>(
 }
 
 pub(crate) fn group_by_arguments<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> Vec<InputField<'a>> {
-    let field_enum_type = InputType::Enum(model_field_enum(ctx, model));
+    let field_enum_type = InputType::Enum(model_field_enum(model));
     let filter_object = InputType::object(filter_objects::scalar_filter_object_type(ctx, model.clone(), true));
 
     vec![

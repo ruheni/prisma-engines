@@ -131,7 +131,7 @@ fn to_one_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: CompositeFiel
         ];
 
         if ctx.has_capability(ConnectorCapability::UndefinedType) && cf.is_optional() {
-            fields.push(is_set_input_field(ctx));
+            fields.push(is_set_input_field());
         }
 
         fields
@@ -166,7 +166,7 @@ fn to_many_composite_filter_object<'a>(ctx: BuilderContext<'a>, cf: CompositeFie
 
         // TODO: Remove from required lists once we have optional lists
         if ctx.has_capability(ConnectorCapability::UndefinedType) {
-            fields.push(is_set_input_field(ctx));
+            fields.push(is_set_input_field());
         }
 
         fields
@@ -336,7 +336,7 @@ fn full_scalar_filter_type<'a>(
         }
 
         if ctx.has_capability(ConnectorCapability::UndefinedType) && (list || nullable) {
-            fields.push(is_set_input_field(ctx));
+            fields.push(is_set_input_field());
         }
 
         fields
@@ -344,7 +344,7 @@ fn full_scalar_filter_type<'a>(
     object
 }
 
-fn is_set_input_field<'a>(ctx: BuilderContext<'a>) -> InputField<'a> {
+fn is_set_input_field<'a>() -> InputField<'a> {
     simple_input_field(filters::IS_SET, InputType::boolean(), None).optional()
 }
 
@@ -368,7 +368,7 @@ fn json_equality_filters<'a>(
     nullable: bool,
 ) -> impl Iterator<Item = InputField<'a>> {
     let field = if ctx.has_capability(ConnectorCapability::AdvancedJsonNullability) {
-        let enum_type = json_null_filter_enum(ctx);
+        let enum_type = json_null_filter_enum();
         let mut field_types = mapped_type.with_field_ref_input(ctx);
         field_types.push(InputType::Enum(enum_type));
 
@@ -487,7 +487,7 @@ fn query_mode_field<'a>(ctx: BuilderContext<'a>, nested: bool) -> impl Iterator<
     // Limit query mode field to the topmost filter level.
     // Only build mode field for connectors with insensitive filter support.
     let fields = if !nested && ctx.has_capability(ConnectorCapability::InsensitiveFilters) {
-        let enum_type = query_mode_enum(ctx);
+        let enum_type = query_mode_enum();
 
         let field = simple_input_field(
             filters::MODE,
@@ -537,7 +537,7 @@ fn not_filter_field<'a>(
     match typ {
         // Json is not nullable on dbs with `AdvancedJsonNullability`, only by proxy through an enum.
         TypeIdentifier::Json if has_adv_json => {
-            let enum_type = json_null_filter_enum(ctx);
+            let enum_type = json_null_filter_enum();
             let mut field_types = mapped_scalar_type.with_field_ref_input(ctx);
             field_types.push(InputType::Enum(enum_type));
 

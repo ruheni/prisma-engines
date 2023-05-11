@@ -28,12 +28,12 @@ pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
             }
 
             if ctx.enable_raw_queries && ctx.has_capability(ConnectorCapability::SqlQueryRaw) {
-                fields.push(create_execute_raw_field(ctx));
-                fields.push(create_query_raw_field(ctx));
+                fields.push(create_execute_raw_field());
+                fields.push(create_query_raw_field());
             }
 
             if ctx.enable_raw_queries && ctx.has_capability(ConnectorCapability::MongoDbQueryRaw) {
-                fields.push(create_mongodb_run_command_raw(ctx));
+                fields.push(create_mongodb_run_command_raw());
             }
 
             fields
@@ -41,7 +41,7 @@ pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
     }
 }
 
-fn create_execute_raw_field<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
+fn create_execute_raw_field<'a>() -> OutputField<'a> {
     field(
         "executeRaw",
         vec![
@@ -61,7 +61,7 @@ fn create_execute_raw_field<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
     )
 }
 
-fn create_query_raw_field<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
+fn create_query_raw_field<'a>() -> OutputField<'a> {
     field(
         "queryRaw",
         vec![
@@ -81,7 +81,7 @@ fn create_query_raw_field<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
     )
 }
 
-fn create_mongodb_run_command_raw<'a>(ctx: BuilderContext<'a>) -> OutputField<'a> {
+fn create_mongodb_run_command_raw<'a>() -> OutputField<'a> {
     field(
         "runCommandRaw",
         vec![simple_input_field("command", InputType::json(), None)],

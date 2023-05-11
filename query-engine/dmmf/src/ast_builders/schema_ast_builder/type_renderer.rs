@@ -3,7 +3,7 @@ use schema::{InputType, ObjectTag, OutputType, ScalarType};
 
 pub(super) fn render_output_type<'a>(output_type: &OutputType<'a>, ctx: &mut RenderContext<'a>) -> DmmfTypeReference {
     match output_type {
-        OutputType::Object(ref obj) => {
+        OutputType::Object(obj) => {
             ctx.mark_to_be_rendered(&obj);
 
             let type_reference = DmmfTypeReference {

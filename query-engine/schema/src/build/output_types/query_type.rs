@@ -21,8 +21,8 @@ pub(crate) fn build<'a>(ctx: BuilderContext<'a>) -> ObjectType<'a> {
                     append_opt(&mut vec, find_unique_or_throw_field(ctx, model.clone()));
 
                     if ctx.enable_raw_queries && ctx.has_capability(ConnectorCapability::MongoDbQueryRaw) {
-                        vec.push(mongo_find_raw_field(ctx, &model));
-                        vec.push(mongo_aggregate_raw_field(ctx, &model));
+                        vec.push(mongo_find_raw_field(&model));
+                        vec.push(mongo_aggregate_raw_field(&model));
                     }
 
                     vec
@@ -152,7 +152,7 @@ fn group_by_aggregation_field<'a>(ctx: BuilderContext<'a>, model: ModelRef) -> O
     )
 }
 
-fn mongo_aggregate_raw_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
+fn mongo_aggregate_raw_field<'a>(model: &ModelRef) -> OutputField<'a> {
     let field_name = format!("aggregate{}Raw", model.name());
 
     field(
@@ -169,7 +169,7 @@ fn mongo_aggregate_raw_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> O
     )
 }
 
-fn mongo_find_raw_field<'a>(ctx: BuilderContext<'a>, model: &ModelRef) -> OutputField<'a> {
+fn mongo_find_raw_field<'a>(model: &ModelRef) -> OutputField<'a> {
     let field_name = format!("find{}Raw", model.name());
 
     field(

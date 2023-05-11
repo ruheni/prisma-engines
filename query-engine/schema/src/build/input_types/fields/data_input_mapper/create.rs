@@ -23,7 +23,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
 
         match &sf.type_identifier() {
             TypeIdentifier::Json if supports_advanced_json => {
-                let enum_type = InputType::enum_type(json_null_input_enum(ctx, !sf.is_required()));
+                let enum_type = InputType::enum_type(json_null_input_enum(!sf.is_required()));
 
                 input_field(sf.name().to_owned(), vec![enum_type, typ], sf.default_value())
                     .optional_if(!sf.is_required() || sf.default_value().is_some() || sf.is_updated_at())

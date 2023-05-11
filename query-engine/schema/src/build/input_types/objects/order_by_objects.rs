@@ -63,12 +63,12 @@ pub(crate) fn order_by_object_type<'a>(
 
         if options.include_scalar_aggregations {
             // orderBy Fields for aggregation orderings.
-            fields.extend(compute_scalar_aggregation_fields(ctx, container.clone()));
+            fields.extend(compute_scalar_aggregation_fields(container.clone()));
         }
 
         if options.include_full_text_search {
             // orderBy Fields for full text searches.
-            append_opt(&mut fields, order_by_field_text_search(ctx, container.clone()))
+            append_opt(&mut fields, order_by_field_text_search(container.clone()))
         }
 
         fields
@@ -76,7 +76,7 @@ pub(crate) fn order_by_object_type<'a>(
     input_object
 }
 
-fn compute_scalar_aggregation_fields<'a>(ctx: BuilderContext<'a>, container: ParentContainer) -> Vec<InputField<'a>> {
+fn compute_scalar_aggregation_fields<'a>(container: ParentContainer) -> Vec<InputField<'a>> {
     let non_list_nor_json_fields = aggregation::collect_non_list_nor_json_fields(&container);
     let numeric_fields = aggregation::collect_numeric_fields(&container);
     let scalar_fields = container
@@ -86,29 +86,21 @@ fn compute_scalar_aggregation_fields<'a>(ctx: BuilderContext<'a>, container: Par
         .collect::<Vec<ScalarFieldRef>>();
 
     let fields = [
-        order_by_field_aggregate(aggregations::UNDERSCORE_COUNT, "Count", ctx, &container, scalar_fields),
-        order_by_field_aggregate(
-            aggregations::UNDERSCORE_AVG,
-            "Avg",
-            ctx,
-            &container,
-            numeric_fields.clone(),
-        ),
+        order_by_field_aggregate(aggregations::UNDERSCORE_COUNT, "Count", &container, scalar_fields),
+        order_by_field_aggregate(aggregations::UNDERSCORE_AVG, "Avg", &container, numeric_fields.clone()),
         order_by_field_aggregate(
             aggregations::UNDERSCORE_MAX,
             "Max",
-            ctx,
             &container,
             non_list_nor_json_fields.clone(),
         ),
         order_by_field_aggregate(
             aggregations::UNDERSCORE_MIN,
             "Min",
-            ctx,
             &container,
             non_list_nor_json_fields,
         ),
-        order_by_field_aggregate(aggregations::UNDERSCORE_SUM, "Sum", ctx, &container, numeric_fields),
+        order_by_field_aggregate(aggregations::UNDERSCORE_SUM, "Sum", &container, numeric_fields),
     ];
 
     fields.into_iter().flatten().collect()
@@ -145,7 +137,7 @@ fn orderby_field_mapper<'a>(
                 && !sf.is_required()
                 && !sf.is_list()
             {
-                types.push(InputType::object(sort_nulls_object_type(ctx)));
+                types.push(InputType::object(sort_nulls_object_type()));
             }
 
             Some(input_field(sf.name().to_owned(), types, None).optional())
@@ -174,7 +166,7 @@ fn orderby_field_mapper<'a>(
     }
 }
 
-fn sort_nulls_object_type<'a>(ctx: BuilderContext<'a>) -> InputObjectType<'a> {
+fn sort_nulls_object_type<'a>() -> InputObjectType<'a> {
     let ident = Identifier::new_prisma("SortOrderInput");
 
     let mut input_object = init_input_object_type(ident.clone());
@@ -193,21 +185,19 @@ fn sort_nulls_object_type<'a>(ctx: BuilderContext<'a>) -> InputObjectType<'a> {
 fn order_by_field_aggregate<'a>(
     name: impl Into<Cow<'static, str>>,
     suffix: &str,
-    ctx: BuilderContext<'a>,
     container: &ParentContainer,
     scalar_fields: Vec<ScalarFieldRef>,
 ) -> Option<InputField<'a>> {
     if scalar_fields.is_empty() {
         None
     } else {
-        let ty = InputType::object(order_by_object_type_aggregate(suffix, ctx, container, scalar_fields));
+        let ty = InputType::object(order_by_object_type_aggregate(suffix, container, scalar_fields));
         Some(simple_input_field(name, ty, None).optional())
     }
 }
 
 fn order_by_object_type_aggregate<'a>(
     suffix: &str,
-    ctx: BuilderContext<'a>,
     container: &ParentContainer,
     scalar_fields: Vec<ScalarFieldRef>,
 ) -> InputObjectType<'a> {
@@ -241,7 +231,7 @@ fn order_by_to_many_aggregate_object_type<'a>(container: &ParentContainer) -> In
     input_object
 }
 
-fn order_by_field_text_search<'a>(ctx: BuilderContext<'a>, container: ParentContainer) -> Option<InputField<'a>> {
+fn order_by_field_text_search<'a>(container: ParentContainer) -> Option<InputField<'a>> {
     let scalar_fields: Vec<_> = container
         .fields()
         .into_iter()
@@ -254,13 +244,12 @@ fn order_by_field_text_search<'a>(ctx: BuilderContext<'a>, container: ParentCont
     if scalar_fields.is_empty() {
         None
     } else {
-        let ty = InputType::object(order_by_object_type_text_search(ctx, container, scalar_fields));
+        let ty = InputType::object(order_by_object_type_text_search(container, scalar_fields));
         Some(simple_input_field(ordering::UNDERSCORE_RELEVANCE, ty, None).optional())
     }
 }
 
 fn order_by_object_type_text_search<'a>(
-    ctx: BuilderContext<'a>,
     container: ParentContainer,
     scalar_fields: Vec<ScalarFieldRef>,
 ) -> InputObjectType<'a> {
@@ -269,7 +258,6 @@ fn order_by_object_type_text_search<'a>(
     let mut input_object = init_input_object_type(ident);
     input_object.fields = Arc::new(move || {
         let fields_enum_type = InputType::enum_type(order_by_relevance_enum(
-            ctx,
             container.clone(),
             scalar_fields
                 .clone()

@@ -52,7 +52,7 @@ impl DataInputFieldMapper for UpdateDataInputFieldMapper {
         let has_adv_json = ctx.has_capability(ConnectorCapability::AdvancedJsonNullability);
         match sf.type_identifier() {
             TypeIdentifier::Json if has_adv_json => {
-                let enum_type = InputType::enum_type(json_null_input_enum(ctx, !sf.is_required()));
+                let enum_type = InputType::enum_type(json_null_input_enum(!sf.is_required()));
                 let input_field = input_field(sf.name().to_owned(), vec![enum_type, base_update_type], None);
 
                 input_field.optional()
@@ -209,7 +209,7 @@ fn composite_update_envelope_object_type<'a>(ctx: BuilderContext<'a>, cf: Compos
         append_opt(&mut fields, composite_upsert_update_input_field(ctx, cf.clone()));
         append_opt(&mut fields, composite_update_many_update_input_field(ctx, cf.clone()));
         append_opt(&mut fields, composite_delete_many_update_input_field(ctx, cf.clone()));
-        append_opt(&mut fields, composite_unset_update_input_field(ctx, &cf));
+        append_opt(&mut fields, composite_unset_update_input_field(&cf));
 
         fields
     });
@@ -242,7 +242,7 @@ fn composite_update_input_field<'a>(ctx: BuilderContext<'a>, cf: CompositeFieldR
 }
 
 // Builds an `unset` input field. Should only be used in the envelope type.
-fn composite_unset_update_input_field<'a>(ctx: BuilderContext<'a>, cf: &CompositeFieldRef) -> Option<InputField<'a>> {
+fn composite_unset_update_input_field<'a>(cf: &CompositeFieldRef) -> Option<InputField<'a>> {
     if cf.is_optional() {
         Some(simple_input_field(operations::UNSET, InputType::boolean(), None).optional())
     } else {
