@@ -4,7 +4,7 @@ use super::{
 };
 use schema::{InputField, InputType, OutputField, ScalarType};
 
-pub(super) fn render_input_field(input_field: &InputField<'_>, ctx: &mut RenderContext) -> DmmfInputField {
+pub(super) fn render_input_field<'a>(input_field: &InputField<'a>, ctx: &mut RenderContext<'a>) -> DmmfInputField {
     let type_references = render_input_types(input_field.field_types(), ctx);
     let nullable = input_field
         .field_types()

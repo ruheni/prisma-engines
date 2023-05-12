@@ -30,7 +30,7 @@ pub(crate) fn render(query_schema: &QuerySchema) -> (DmmfSchema, DmmfOperationMa
 }
 
 pub(crate) struct RenderContext<'a> {
-    query_schema: &'a QuerySchema,
+    _query_schema: &'a QuerySchema,
 
     /// Aggregator for query schema
     schema: DmmfSchema,
@@ -48,9 +48,9 @@ pub(crate) struct RenderContext<'a> {
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn new(query_schema: &'a QuerySchema) -> Self {
+    pub fn new(_query_schema: &'a QuerySchema) -> Self {
         RenderContext {
-            query_schema,
+            _query_schema,
             schema: Default::default(),
             mappings: Default::default(),
             rendered: Default::default(),
@@ -149,7 +149,7 @@ impl<'a> RenderContext<'a> {
         }
     }
 
-    fn mark_to_be_rendered(&mut self, into_renderer: &dyn AsRenderer<'a>) {
+    fn mark_to_be_rendered(&mut self, into_renderer: &(impl AsRenderer<'a> + 'a)) {
         if !into_renderer.is_already_rendered(self) {
             let renderer: Box<dyn Renderer> = into_renderer.as_renderer();
             self.next_pass.push(renderer)
@@ -162,14 +162,14 @@ pub(crate) trait Renderer<'a> {
 }
 
 trait AsRenderer<'a> {
-    fn as_renderer(&self) -> Box<dyn Renderer + 'a>;
+    fn as_renderer(&self) -> Box<dyn Renderer<'a> + 'a>;
 
     /// Returns whether the item still needs to be rendered.
     fn is_already_rendered(&self, ctx: &RenderContext<'_>) -> bool;
 }
 
 impl<'a> AsRenderer<'a> for &'a QuerySchema {
-    fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
+    fn as_renderer(&self) -> Box<dyn Renderer<'a> + 'a> {
         Box::new(DmmfSchemaRenderer::new(*self))
     }
 
@@ -178,9 +178,9 @@ impl<'a> AsRenderer<'a> for &'a QuerySchema {
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a EnumType {
-    fn as_renderer(&self) -> Box<dyn Renderer> {
-        Box::new(DmmfEnumRenderer::new(self))
+impl<'a> AsRenderer<'a> for EnumType {
+    fn as_renderer(&self) -> Box<dyn Renderer<'a> + 'a> {
+        Box::new(DmmfEnumRenderer::new(self.clone()))
     }
 
     fn is_already_rendered(&self, ctx: &RenderContext) -> bool {
@@ -188,9 +188,9 @@ impl<'a> AsRenderer<'a> for &'a EnumType {
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a InputObjectType<'a> {
-    fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
-        Box::new(DmmfObjectRenderer::Input(*self))
+impl<'a> AsRenderer<'a> for InputObjectType<'a> {
+    fn as_renderer(&self) -> Box<dyn Renderer<'a> + 'a> {
+        Box::new(DmmfObjectRenderer::Input(self.clone()))
     }
 
     fn is_already_rendered(&self, ctx: &RenderContext) -> bool {
@@ -198,9 +198,9 @@ impl<'a> AsRenderer<'a> for &'a InputObjectType<'a> {
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a ObjectType<'a> {
-    fn as_renderer(&self) -> Box<dyn Renderer + 'a> {
-        Box::new(DmmfObjectRenderer::Output(self))
+impl<'a> AsRenderer<'a> for ObjectType<'a> {
+    fn as_renderer(&self) -> Box<dyn Renderer<'a> + 'a> {
+        Box::new(DmmfObjectRenderer::Output(self.clone()))
     }
 
     fn is_already_rendered(&self, ctx: &RenderContext) -> bool {

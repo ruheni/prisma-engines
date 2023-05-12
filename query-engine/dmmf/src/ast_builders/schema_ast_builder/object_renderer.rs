@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Debug)]
 pub(crate) enum DmmfObjectRenderer<'a> {
-    Input(&'a InputObjectType<'a>),
-    Output(&'a ObjectType<'a>),
+    Input(InputObjectType<'a>),
+    Output(ObjectType<'a>),
 }
 
 impl<'a> Renderer<'a> for DmmfObjectRenderer<'a> {
@@ -18,8 +18,8 @@ impl<'a> Renderer<'a> for DmmfObjectRenderer<'a> {
     }
 }
 
-impl DmmfObjectRenderer<'_> {
-    fn render_input_object(&self, input_object: &InputObjectType, ctx: &mut RenderContext) {
+impl<'a> DmmfObjectRenderer<'a> {
+    fn render_input_object(&self, input_object: &InputObjectType<'a>, ctx: &mut RenderContext<'a>) {
         if ctx.already_rendered(&input_object.identifier) {
             return;
         }
@@ -55,7 +55,7 @@ impl DmmfObjectRenderer<'_> {
         ctx.add_input_type(input_object.identifier.clone(), input_type);
     }
 
-    fn render_field_ref_type(&self, input_object: &InputObjectType, ctx: &mut RenderContext) {
+    fn render_field_ref_type(&self, input_object: &InputObjectType<'a>, ctx: &mut RenderContext<'a>) {
         if ctx.already_rendered(&input_object.identifier) {
             return;
         }
@@ -84,7 +84,7 @@ impl DmmfObjectRenderer<'_> {
         ctx.add_field_ref_type(input_object.identifier.clone(), field_ref_type);
     }
 
-    fn render_output_object<'a>(&self, output_object: &ObjectType<'a>, ctx: &mut RenderContext<'a>) {
+    fn render_output_object(&self, output_object: &ObjectType<'a>, ctx: &mut RenderContext<'a>) {
         if ctx.already_rendered(output_object.identifier()) {
             return;
         }

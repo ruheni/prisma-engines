@@ -4,7 +4,9 @@ pub(crate) fn render_enum_types<'a>(ctx: &mut RenderContext, enum_types: impl It
     let mut borrows: Vec<_> = enum_types.collect();
 
     borrows.sort_by_key(|a| a.name());
-    borrows.into_iter().for_each(|et| DmmfEnumRenderer::new(et).render(ctx));
+    borrows
+        .into_iter()
+        .for_each(|et| DmmfEnumRenderer::new(et.clone()).render(ctx));
 }
 
 pub struct DmmfEnumRenderer {
@@ -29,10 +31,8 @@ impl<'a> Renderer<'a> for DmmfEnumRenderer {
 }
 
 impl DmmfEnumRenderer {
-    pub fn new(enum_type: &EnumType) -> DmmfEnumRenderer {
-        DmmfEnumRenderer {
-            enum_type: enum_type.clone(),
-        }
+    pub(crate) fn new(enum_type: EnumType) -> DmmfEnumRenderer {
+        DmmfEnumRenderer { enum_type }
     }
 
     fn format_enum_values(&self) -> Vec<String> {
