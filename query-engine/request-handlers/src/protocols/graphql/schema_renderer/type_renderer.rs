@@ -2,12 +2,12 @@ use super::*;
 
 #[derive(Debug)]
 pub enum GqlTypeRenderer<'a> {
-    Input(&'a InputType),
-    Output(&'a OutputType),
+    Input(InputType<'a>),
+    Output(OutputType<'a>),
 }
 
-impl<'a> Renderer for GqlTypeRenderer<'a> {
-    fn render(&self, ctx: &mut RenderContext) -> String {
+impl<'a> Renderer<'a> for GqlTypeRenderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>) -> String {
         match self {
             GqlTypeRenderer::Input(i) => self.render_input_type(i, ctx),
             GqlTypeRenderer::Output(o) => self.render_output_type(o, ctx),
@@ -17,16 +17,14 @@ impl<'a> Renderer for GqlTypeRenderer<'a> {
 
 #[allow(clippy::only_used_in_recursion)]
 impl<'a> GqlTypeRenderer<'a> {
-    fn render_input_type(&self, i: &InputType, ctx: &mut RenderContext) -> String {
+    fn render_input_type(&self, i: &InputType<'a>, ctx: &mut RenderContext<'a>) -> String {
         match i {
             InputType::Object(obj) => {
-                let obj = &ctx.query_schema.db[*obj];
                 obj.as_renderer().render(ctx);
                 obj.identifier.name()
             }
 
             InputType::Enum(et) => {
-                let et = &ctx.query_schema.db[*et];
                 et.as_renderer().render(ctx);
                 et.identifier().name()
             }
@@ -58,16 +56,14 @@ impl<'a> GqlTypeRenderer<'a> {
         }
     }
 
-    fn render_output_type(&self, o: &OutputType, ctx: &mut RenderContext) -> String {
+    fn render_output_type(&self, o: &OutputType<'a>, ctx: &mut RenderContext<'a>) -> String {
         match o {
             OutputType::Object(obj) => {
-                let obj = &ctx.query_schema.db[*obj];
                 obj.as_renderer().render(ctx);
                 obj.name()
             }
 
             OutputType::Enum(et) => {
-                let et = &ctx.query_schema.db[*et];
                 et.as_renderer().render(ctx);
                 et.identifier().name()
             }

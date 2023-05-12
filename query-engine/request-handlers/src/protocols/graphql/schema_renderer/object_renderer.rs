@@ -2,21 +2,21 @@ use super::*;
 
 #[derive(Debug)]
 pub enum GqlObjectRenderer<'a> {
-    Input(&'a InputObjectType),
-    Output(&'a ObjectType),
+    Input(InputObjectType<'a>),
+    Output(ObjectType<'a>),
 }
 
-impl<'a> Renderer for GqlObjectRenderer<'a> {
-    fn render(&self, ctx: &mut RenderContext) -> String {
+impl<'a> Renderer<'a> for GqlObjectRenderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>) -> String {
         match &self {
-            GqlObjectRenderer::Input(input) => self.render_input_object(*input, ctx),
+            GqlObjectRenderer::Input(input) => self.render_input_object(input, ctx),
             GqlObjectRenderer::Output(output) => self.render_output_object(output, ctx),
         }
     }
 }
 
 impl<'a> GqlObjectRenderer<'a> {
-    fn render_input_object(&self, input_object: &InputObjectType, ctx: &mut RenderContext) -> String {
+    fn render_input_object(&self, input_object: &InputObjectType<'a>, ctx: &mut RenderContext<'a>) -> String {
         if ctx.already_rendered(&input_object.identifier.name()) {
             return "".into();
         } else {
@@ -47,7 +47,7 @@ impl<'a> GqlObjectRenderer<'a> {
         rendered
     }
 
-    fn render_output_object(&self, output_object: &ObjectType, ctx: &mut RenderContext) -> String {
+    fn render_output_object(&self, output_object: & ObjectType<'a>, ctx: &mut RenderContext<'a>) -> String {
         if ctx.already_rendered(&output_object.name()) {
             return "".into();
         } else {
@@ -67,11 +67,7 @@ impl<'a> GqlObjectRenderer<'a> {
             .map(|f| format!("{}{}", ctx.indent(), f))
             .collect();
 
-        let rendered = format!(
-            "type {} {{\n{}\n}}",
-            output_object.name(),
-            indented.join("\n")
-        );
+        let rendered = format!("type {} {{\n{}\n}}", output_object.name(), indented.join("\n"));
 
         ctx.add_output(rendered.clone());
 

@@ -28,7 +28,7 @@ impl JsonProtocolAdapter {
         let (operation_type, field) = Self::find_schema_field(query_schema, model_name, action)?;
         let container = field.model().map(ParentContainer::from);
 
-        let selection = Self::convert_selection(field, container.as_ref(), query, query_schema)?;
+        let selection = Self::convert_selection(&field, container.as_ref(), query, query_schema)?;
 
         match operation_type {
             OperationType::Read => Ok(Operation::Read(selection)),
@@ -36,11 +36,11 @@ impl JsonProtocolAdapter {
         }
     }
 
-    fn convert_selection(
-        field: &OutputField,
+    fn convert_selection<'a>(
+        field: &OutputField<'a>,
         container: Option<&ParentContainer>,
         query: FieldQuery,
-        query_schema: &QuerySchema,
+        query_schema: &'a QuerySchema,
     ) -> crate::Result<Selection> {
         let FieldQuery {
             arguments,
@@ -63,13 +63,13 @@ impl JsonProtocolAdapter {
             match selected {
                 // $scalars: true
                 crate::SelectionSetValue::Shorthand(true) if SelectionSet::is_all_scalars(&selection_name) => {
-                    if let Some(schema_object) = field.field_type().as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type().as_object_type() {
                         Self::default_scalar_selection(schema_object, &mut selection);
                     }
                 }
                 // $composites: true
                 crate::SelectionSetValue::Shorthand(true) if SelectionSet::is_all_composites(&selection_name) => {
-                    if let Some(schema_object) = field.field_type().as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type().as_object_type() {
                         if let Some(container) = container {
                             Self::default_composite_selection(
                                 &mut selection,
@@ -95,7 +95,7 @@ impl JsonProtocolAdapter {
                 crate::SelectionSetValue::Shorthand(false) => (),
                 // <field_name>: { selection: { ... }, arguments: { ... } }
                 crate::SelectionSetValue::Nested(nested_query) => {
-                    if let Some(schema_object) = field.field_type().as_object_type(&query_schema.db) {
+                    if let Some(schema_object) = field.field_type().as_object_type() {
                         let schema_field = schema_object.find_field(&selection_name).ok_or_else(|| {
                             HandlerError::query_conversion(format!(
                                 "Unknown nested field '{}' for operation {} does not match any query.",
@@ -115,7 +115,7 @@ impl JsonProtocolAdapter {
                         }
 
                         selection.push_nested_selection(Self::convert_selection(
-                            schema_field,
+                            &schema_field,
                             nested_container.as_ref(),
                             nested_query,
                             query_schema,
@@ -245,19 +245,18 @@ impl JsonProtocolAdapter {
         }
     }
 
-    fn create_shorthand_selection(
-        parent_field: &OutputField,
+    fn create_shorthand_selection<'a>(
+        parent_field: &OutputField<'a>,
         nested_field_name: &str,
         container: Option<&ParentContainer>,
-        query_schema: &QuerySchema,
+        query_schema: &'a QuerySchema,
         all_scalars_set: bool,
     ) -> crate::Result<Selection> {
         let nested_object_type = parent_field
             .field_type()
-            .as_object_type(&query_schema.db)
+            .as_object_type()
             .and_then(|parent_object| parent_object.find_field(nested_field_name))
-            .and_then(|nested_field| nested_field.field_type().as_object_type(&query_schema.db))
-            .map(|nested_object| nested_object);
+            .and_then(|nested_field| nested_field.field_type().as_object_type().cloned());
 
         if let Some(nested_object_type) = nested_object_type {
             // case for a relation - we select all nested scalar fields and composite fields
@@ -268,7 +267,7 @@ impl JsonProtocolAdapter {
 
             Self::default_scalar_and_composite_selection(
                 &mut nested_selection,
-                nested_object_type,
+                &nested_object_type,
                 nested_container.as_ref(),
                 query_schema,
             )?;
@@ -315,7 +314,7 @@ impl JsonProtocolAdapter {
                         Self::default_composite_selection(
                             &mut nested_selection,
                             &ParentContainer::from(cf.typ()),
-                            schema_field.field_type().as_object_type(&query_schema.db).unwrap(),
+                            schema_field.field_type().as_object_type().unwrap(),
                             walked_fields,
                             query_schema,
                         )?;
@@ -349,7 +348,7 @@ impl JsonProtocolAdapter {
                                 Self::default_composite_selection(
                                     &mut nested_selection,
                                     &ParentContainer::from(cf.typ()),
-                                    schema_field.field_type().as_object_type(&query_schema.db).unwrap(),
+                                    schema_field.field_type().as_object_type().unwrap(),
                                     walked_fields,
                                     query_schema,
                                 )?;
@@ -386,11 +385,11 @@ impl JsonProtocolAdapter {
         Ok(())
     }
 
-    fn find_schema_field(
-        query_schema: &QuerySchema,
+    fn find_schema_field<'a>(
+        query_schema: &'a QuerySchema,
         model_name: Option<String>,
         action: crate::Action,
-    ) -> crate::Result<(OperationType, &OutputField)> {
+    ) -> crate::Result<(OperationType, OutputField<'a>)> {
         if let Some(field) = query_schema.find_query_field_by_model_and_action(model_name.as_deref(), action.value()) {
             return Ok((OperationType::Read, field));
         };

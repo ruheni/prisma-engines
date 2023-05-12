@@ -7,29 +7,29 @@ use enum_renderer::*;
 use field_renderer::*;
 use object_renderer::*;
 use query_core::schema::*;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use type_renderer::*;
 
 /// Top level GraphQL schema renderer.
-struct GqlSchemaRenderer {
-    query_schema: QuerySchemaRef,
+struct GqlSchemaRenderer<'a> {
+    query_schema: &'a QuerySchema,
 }
 
-impl Renderer for GqlSchemaRenderer {
-    fn render(&self, ctx: &mut RenderContext) -> String {
+impl<'a> Renderer<'a> for GqlSchemaRenderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>) -> String {
         let _ = self.query_schema.query().as_renderer().render(ctx);
         self.query_schema.mutation().as_renderer().render(ctx)
     }
 }
 
-impl GqlSchemaRenderer {
-    fn new(query_schema: QuerySchemaRef) -> GqlSchemaRenderer {
+impl<'a> GqlSchemaRenderer<'a> {
+    fn new(query_schema: &'a QuerySchema) -> GqlSchemaRenderer<'a> {
         GqlSchemaRenderer { query_schema }
     }
 }
 
-pub fn render_graphql_schema(query_schema: QuerySchemaRef) -> String {
-    let mut context = RenderContext::new(&query_schema);
+pub fn render_graphql_schema(query_schema: &QuerySchema) -> String {
+    let mut context = RenderContext::new(query_schema);
     query_schema.as_renderer().render(&mut context);
 
     // Add custom scalar types (required for graphql.js implementations)
@@ -39,12 +39,12 @@ pub fn render_graphql_schema(query_schema: QuerySchemaRef) -> String {
     )
 }
 
-trait Renderer {
-    fn render(&self, ctx: &mut RenderContext) -> String;
+trait Renderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>) -> String;
 }
 
 struct RenderContext<'a> {
-    query_schema: &'a QuerySchema,
+    _query_schema: &'a QuerySchema,
 
     /// Output queue for all (top level) elements that need to be rendered,
     output_queue: Vec<String>,
@@ -60,9 +60,9 @@ struct RenderContext<'a> {
 }
 
 impl<'a> RenderContext<'a> {
-    fn new(query_schema: &'a QuerySchema) -> Self {
+    fn new(_query_schema: &'a QuerySchema) -> Self {
         RenderContext {
-            query_schema,
+            _query_schema,
             output_queue: Default::default(),
             rendered: Default::default(),
             indent: 2,
@@ -97,15 +97,15 @@ impl<'a> RenderContext<'a> {
 }
 
 enum GqlRenderer<'a> {
-    Schema(GqlSchemaRenderer),
+    Schema(GqlSchemaRenderer<'a>),
     Object(GqlObjectRenderer<'a>),
     Type(GqlTypeRenderer<'a>),
     Field(GqlFieldRenderer<'a>),
-    Enum(GqlEnumRenderer<'a>),
+    Enum(GqlEnumRenderer),
 }
 
-impl<'a> Renderer for GqlRenderer<'a> {
-    fn render(&self, ctx: &mut RenderContext) -> String {
+impl<'a> Renderer<'a> for GqlRenderer<'a> {
+    fn render(&self, ctx: &mut RenderContext<'a>) -> String {
         match self {
             GqlRenderer::Schema(s) => s.render(ctx),
             GqlRenderer::Object(o) => o.render(ctx),
@@ -117,53 +117,53 @@ impl<'a> Renderer for GqlRenderer<'a> {
 }
 
 trait AsRenderer<'a> {
-    fn as_renderer(&'a self) -> GqlRenderer<'a>;
+    fn as_renderer(&self) -> GqlRenderer<'a>;
 }
 
-impl<'a> AsRenderer<'a> for QuerySchemaRef {
+impl<'a> AsRenderer<'a> for &'a QuerySchema {
     fn as_renderer(&self) -> GqlRenderer<'a> {
-        GqlRenderer::Schema(GqlSchemaRenderer::new(Arc::clone(self)))
+        GqlRenderer::Schema(GqlSchemaRenderer::new(self))
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a InputType {
+impl<'a> AsRenderer<'a> for InputType<'a> {
     fn as_renderer(&self) -> GqlRenderer<'a> {
-        GqlRenderer::Type(GqlTypeRenderer::Input(self))
+        GqlRenderer::Type(GqlTypeRenderer::Input(self.clone()))
     }
 }
 
-impl<'a> AsRenderer<'a> for OutputType {
-    fn as_renderer(&'a self) -> GqlRenderer<'a> {
-        GqlRenderer::Type(GqlTypeRenderer::Output(self))
+impl<'a> AsRenderer<'a> for OutputType<'a> {
+    fn as_renderer(&self) -> GqlRenderer<'a> {
+        GqlRenderer::Type(GqlTypeRenderer::Output(self.clone()))
     }
 }
 
-impl<'a> AsRenderer<'a> for InputField {
-    fn as_renderer(&'a self) -> GqlRenderer<'a> {
-        GqlRenderer::Field(GqlFieldRenderer::Input(self))
+impl<'a> AsRenderer<'a> for InputField<'a> {
+    fn as_renderer(&self) -> GqlRenderer<'a> {
+        GqlRenderer::Field(GqlFieldRenderer::Input(self.clone()))
     }
 }
 
-impl<'a> AsRenderer<'a> for OutputField {
-    fn as_renderer(&'a self) -> GqlRenderer<'a> {
-        GqlRenderer::Field(GqlFieldRenderer::Output(self))
+impl<'a> AsRenderer<'a> for OutputField<'a> {
+    fn as_renderer(&self) -> GqlRenderer<'a> {
+        GqlRenderer::Field(GqlFieldRenderer::Output(self.clone()))
     }
 }
 
 impl<'a> AsRenderer<'a> for EnumType {
-    fn as_renderer(&'a self) -> GqlRenderer<'a> {
-        GqlRenderer::Enum(GqlEnumRenderer::new(self))
+    fn as_renderer(&self) -> GqlRenderer<'a> {
+        GqlRenderer::Enum(GqlEnumRenderer::new(self.clone()))
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a InputObjectType {
+impl<'a> AsRenderer<'a> for InputObjectType<'a> {
     fn as_renderer(&self) -> GqlRenderer<'a> {
-        GqlRenderer::Object(GqlObjectRenderer::Input(*self))
+        GqlRenderer::Object(GqlObjectRenderer::Input(self.clone()))
     }
 }
 
-impl<'a> AsRenderer<'a> for &'a ObjectType {
+impl<'a> AsRenderer<'a> for ObjectType<'a> {
     fn as_renderer(&self) -> GqlRenderer<'a> {
-        GqlRenderer::Object(GqlObjectRenderer::Output(*self))
+        GqlRenderer::Object(GqlObjectRenderer::Output(self.clone()))
     }
 }

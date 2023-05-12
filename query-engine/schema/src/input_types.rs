@@ -315,4 +315,11 @@ impl<'a> InputType<'a> {
             None
         }
     }
+
+    pub fn into_object(self) -> Option<InputObjectType<'a>> {
+        match self {
+            InputType::Object(obj) => Some(obj),
+            _ => None,
+        }
+    }
 }
